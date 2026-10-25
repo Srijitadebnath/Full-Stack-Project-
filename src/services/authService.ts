@@ -1,79 +1,119 @@
-import { User, UserRole } from '../types';
-import { mockUsers } from '../data/mockUsers';
-import { teamService } from './teamService';
+import { User } from '../types';
+
+const API_BASE = 'http://localhost:5000/api';
 
 class AuthService {
-  private currentUser: User = mockUsers[0];
+  private currentUser: User | null = null;
 
-  async getCurrentUser(): Promise<User> {
-    return Promise.resolve(this.currentUser);
+  constructor() {
+    // Rehydrate user from localStorage if token exists
+    const savedUser = localStorage.getItem('auth_user');
+    if (savedUser) {
+      try {
+        this.currentUser = JSON.parse(savedUser);
+      } catch {
+        this.currentUser = null;
+      }
+    }
   }
 
-  async loginWithEmail(email: string): Promise<{ user: User; redirectPath: string }> {
-    const cleanEmail = email.trim().toLowerCase();
-
-    // 1. Check if Admin
-    if (cleanEmail === 'admin@college.edu' || cleanEmail.includes('admin')) {
-      const adminUser = mockUsers.find((u) => u.role === 'admin') || mockUsers[0];
-      this.currentUser = adminUser;
-      localStorage.setItem('user_role', 'admin');
-      localStorage.setItem('user_email', cleanEmail);
-      return { user: adminUser, redirectPath: '/admin/dashboard' };
-    }
-
-    // 2. Check if Registered OC Team Member
-    const ocMembers = await teamService.getTeamMembers();
-    const matchingOC = ocMembers.find((m) => m.email.toLowerCase() === cleanEmail) ||
-      mockUsers.find((u) => u.role === 'team' && u.email.toLowerCase() === cleanEmail);
-
-    if (matchingOC) {
-      const teamUser: User = {
-        id: matchingOC.id,
-        name: matchingOC.name,
-        email: matchingOC.email,
-        role: 'team',
-        phone: matchingOC.phone,
-        department: matchingOC.department,
-        college: 'UPES Dehradun',
-        assignedEventName: matchingOC.assignedEventName,
-        ocRole: ('responsibility' in matchingOC)
-          ? `${matchingOC.role} - ${matchingOC.responsibility}`
-          : (matchingOC.ocRole || 'OC Team Member'),
-      };
-      this.currentUser = teamUser;
-      localStorage.setItem('user_role', 'team');
-      localStorage.setItem('user_email', cleanEmail);
-      return { user: teamUser, redirectPath: '/vendor/dashboard' };
-    }
-
-    // 3. Student / Participant Access
-    if (cleanEmail.includes('student') || cleanEmail.includes('.edu') || cleanEmail.length > 3) {
-      const studentUser: User = {
-        id: `std-${Date.now()}`,
-        name: cleanEmail.split('@')[0].replace('.', ' '),
-        email: cleanEmail,
-        role: 'user',
-      };
-      this.currentUser = studentUser;
-      localStorage.setItem('user_role', 'user');
-      localStorage.setItem('user_email', cleanEmail);
-      return { user: studentUser, redirectPath: '/user/home' };
-    }
-
-    throw new Error('Unrecognized Email Address. Please enter a valid college email address.');
+  async getCurrentUser(): Promise<User | null> {
+    return this.currentUser;
   }
 
-  async login(role: UserRole): Promise<User> {
-    const user = mockUsers.find((u) => u.role === role) || mockUsers[0];
-    this.currentUser = user;
-    localStorage.setItem('user_role', role);
-    return Promise.resolve(user);
+  // Live Backend Login: POST /api/auth/login
+  async loginWithCredentials(
+    email: string,
+    password: string,
+    portal: 'ADMIN' | 'TEAM' | 'USER'
+  ): Promise<{ user: User; redirectPath: string }> {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, portal }),
+    });
+
+    const data = await res.json();
+
+    if (!data.success) {
+      throw new Error(data.message || 'Authentication failed');
+    }
+
+    // Normalize role to lowercase for frontend typing
+    const roleUpper = (data.user.role || '').toUpperCase();
+    const normalizedRole = roleUpper === 'ADMIN' ? 'admin' : roleUpper === 'TEAM' ? 'team' : 'user';
+    data.user.role = normalizedRole;
+
+    // Save JWT token and profile to localStorage
+    localStorage.setItem('auth_token', data.token);
+    localStorage.setItem('user_role', normalizedRole);
+    localStorage.setItem('user_email', data.user.email);
+    localStorage.setItem('auth_user', JSON.stringify(data.user));
+
+    this.currentUser = data.user;
+
+    // Strict Role Redirection
+    let redirectPath = '/user/home';
+    if (roleUpper === 'ADMIN') redirectPath = '/admin/dashboard';
+    else if (roleUpper === 'TEAM') redirectPath = '/vendor/dashboard';
+
+    return { user: data.user, redirectPath };
   }
 
-  async logout(): Promise<void> {
+  // Student Sign Up / Register Profile
+  async registerStudent(studentData: {
+    name: string;
+    email: string;
+    password: string;
+    phone: string;
+    department: string;
+    college: string;
+  }): Promise<{ user: User; redirectPath: string }> {
+    const res = await fetch(`${API_BASE}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(studentData),
+    });
+
+    const data = await res.json();
+    if (!data.success) {
+      throw new Error(data.message || 'Student registration failed');
+    }
+
+    localStorage.setItem('auth_token', data.token);
+    localStorage.setItem('user_role', 'user');
+    localStorage.setItem('user_email', data.user.email);
+    localStorage.setItem('auth_user', JSON.stringify(data.user));
+
+    this.currentUser = data.user;
+    return { user: data.user, redirectPath: '/user/home' };
+  }
+
+  // Live Forgot Password: POST /api/auth/forgot-password
+  async requestPasswordReset(email: string): Promise<{ message: string; recoveryMailbox?: string }> {
+    const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await res.json();
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to request password reset');
+    }
+
+    return {
+      message: data.message,
+      recoveryMailbox: data.data?.recovery_mailbox,
+    };
+  }
+
+  logout() {
+    this.currentUser = null;
+    localStorage.removeItem('auth_token');
     localStorage.removeItem('user_role');
     localStorage.removeItem('user_email');
-    return Promise.resolve();
+    localStorage.removeItem('auth_user');
   }
 }
 

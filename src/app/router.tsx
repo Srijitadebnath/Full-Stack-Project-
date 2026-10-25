@@ -36,6 +36,28 @@ import { UserRegisterPage } from '../pages/user/UserRegisterPage';
 import { UserMyEventsPage } from '../pages/user/UserMyEventsPage';
 import { UserCalendarPage } from '../pages/user/UserCalendarPage';
 
+// Route Protection Component
+const ProtectedRoute: React.FC<{
+  user: User | null;
+  allowedRoles: string[];
+  children: React.ReactElement;
+}> = ({ user, allowedRoles, children }) => {
+  // If user is not logged in, redirect to login
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const userRole = (user.role || '').toUpperCase();
+  const isAllowed = allowedRoles.map((r) => r.toUpperCase()).includes(userRole);
+
+  // If role is not authorized (e.g. Student trying to access Admin or OC portals), redirect to Student Home
+  if (!isAllowed) {
+    return <Navigate to="/user/home" replace />;
+  }
+
+  return children;
+};
+
 export const AppRouter: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
@@ -54,8 +76,14 @@ export const AppRouter: React.FC = () => {
         {/* Auth Route */}
         <Route path="/login" element={<LoginPage onLoginSuccess={loadUser} />} />
 
-        {/* Admin & OC Console Layout Shell */}
-        <Route element={<AppLayout user={currentUser} />}>
+        {/* Admin Console (Strictly Faculty Admin Only) */}
+        <Route
+          element={
+            <ProtectedRoute user={currentUser} allowedRoles={['ADMIN']}>
+              <AppLayout user={currentUser} />
+            </ProtectedRoute>
+          }
+        >
           <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
           <Route path="/admin/events" element={<AdminEventsPage />} />
           <Route path="/admin/events/:eventId" element={<AdminEventDetailPage />} />
@@ -68,8 +96,16 @@ export const AppRouter: React.FC = () => {
           <Route path="/admin/chat" element={<AdminChatPage />} />
           <Route path="/admin/calendar" element={<AdminCalendarPage />} />
           <Route path="/admin/ai" element={<AdminAIPage />} />
+        </Route>
 
-          {/* Vendor / OC Team Portal Routes */}
+        {/* Vendor / OC Team Portal (Strictly OC Team & Admin) */}
+        <Route
+          element={
+            <ProtectedRoute user={currentUser} allowedRoles={['TEAM', 'ADMIN']}>
+              <AppLayout user={currentUser} />
+            </ProtectedRoute>
+          }
+        >
           <Route path="/vendor/dashboard" element={<VendorDashboardPage />} />
           <Route path="/vendor/events" element={<AdminEventsPage />} />
           <Route path="/vendor/tasks" element={<VendorTasksPage />} />
@@ -82,15 +118,17 @@ export const AppRouter: React.FC = () => {
           <Route path="/vendor/profile" element={<VendorProfilePage />} />
         </Route>
 
-        {/* Student / Participant Routes */}
+        {/* Student / Participant Routes (Open to Students & Campus Community) */}
         <Route path="/user/home" element={<UserHomePage />} />
+        <Route path="/user/events" element={<UserHomePage />} />
         <Route path="/user/events/:eventId" element={<UserEventDetailPage />} />
         <Route path="/user/register/:eventId" element={<UserRegisterPage />} />
         <Route path="/user/my-events" element={<UserMyEventsPage />} />
         <Route path="/user/calendar" element={<UserCalendarPage />} />
 
-        {/* Default Redirect */}
-        <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+        {/* Default Safe Fallback: Directs to Student Discovery Portal */}
+        <Route path="/" element={<Navigate to="/user/home" replace />} />
+        <Route path="*" element={<Navigate to="/user/home" replace />} />
       </Routes>
     </BrowserRouter>
   );

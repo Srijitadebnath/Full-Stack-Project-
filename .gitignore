@@ -12,8 +12,16 @@ server/node_modules
 dist
 dist-ssr
 *.local
+# Environment & API Private Keys
 .env
+.env.*
+*.env
 server/.env
+server/.env.*
+!.env.example
+!server/.env.example
+*.key
+*.pem
 
 # Editor directories and files
 .vscode/*
@@ -25,3 +33,4 @@ server/.env
 *.njsproj
 *.sln
 *.sw?
+.neon

@@ -1,26 +1,89 @@
 import { Registration } from '../types';
-import { mockRegistrations } from '../data/mockRegistrations';
+
+const API_BASE = 'http://localhost:5000/api';
 
 class RegistrationService {
-  private registrations: Registration[] = [...mockRegistrations];
-
-  async getRegistrations(): Promise<Registration[]> {
-    return Promise.resolve([...this.registrations]);
+  // Fetch real event registrations from PostgreSQL database
+  async getRegistrations(userEmail?: string): Promise<Registration[]> {
+    try {
+      const url = userEmail
+        ? `${API_BASE}/registrations?email=${encodeURIComponent(userEmail)}`
+        : `${API_BASE}/registrations`;
+      const res = await fetch(url);
+      const result = await res.json();
+      if (result.success && Array.isArray(result.data)) {
+        return result.data;
+      }
+      return [];
+    } catch (err) {
+      console.error('Failed to fetch registrations from database:', err);
+      return [];
+    }
   }
 
   async getRegistrationsByEvent(eventId: string): Promise<Registration[]> {
-    return Promise.resolve(this.registrations.filter((r) => r.eventId === eventId));
+    try {
+      const res = await fetch(`${API_BASE}/registrations?event_id=${encodeURIComponent(eventId)}`);
+      const result = await res.json();
+      if (result.success && Array.isArray(result.data)) {
+        return result.data;
+      }
+      return [];
+    } catch (err) {
+      console.error('Failed to fetch event registrations:', err);
+      return [];
+    }
   }
 
-  async createRegistration(data: Omit<Registration, 'id' | 'registrationDate' | 'status'>): Promise<Registration> {
-    const newReg: Registration = {
-      ...data,
-      id: `reg-${Date.now()}`,
-      registrationDate: new Date().toISOString().split('T')[0],
+  // Live ACID Registration with Row-Locking in PostgreSQL
+  async createRegistration(
+    eventId: string,
+    data: {
+      userName: string;
+      userEmail: string;
+      userPhone: string;
+      college: string;
+      course: string;
+      year: string;
+      studentId: string;
+      registrationType?: string;
+    }
+  ): Promise<Registration> {
+    const res = await fetch(`${API_BASE}/events/${eventId}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_name: data.userName,
+        user_email: data.userEmail,
+        user_phone: data.userPhone,
+        student_id: data.studentId,
+        college: data.college,
+        course: data.course,
+        year_level: data.year,
+        registration_type: 'PARTICIPANT',
+      }),
+    });
+
+    const result = await res.json();
+    if (!result.success) {
+      throw new Error(result.message || 'Registration failed');
+    }
+
+    return {
+      id: result.data.ticket_id,
+      eventId: result.data.event_id,
+      eventName: result.data.event_name,
+      userName: result.data.user_name,
+      userEmail: result.data.user_email,
+      userPhone: data.userPhone,
+      college: data.college,
+      course: data.course,
+      year: data.year,
+      studentId: data.studentId,
+      registrationType: 'participant',
       status: 'confirmed',
+      registrationDate: result.data.registration_date,
     };
-    this.registrations.unshift(newReg);
-    return Promise.resolve(newReg);
   }
 }
 

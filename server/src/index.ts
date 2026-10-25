@@ -230,17 +230,20 @@ app.post('/api/events/:id/register', async (req: Request, res: Response) => {
             });
         }
 
-        // Business Validation: Check duplicate registration by SAP ID or Email
+        // Business Validation: Check duplicate registration by SAP ID or Email (Case-insensitive & trimmed)
         const existingReg = await client.query(`
             SELECT id FROM registrations
-            WHERE event_id = $1 AND (student_id = $2 OR user_email = $3);
+            WHERE event_id = $1 AND (
+                LOWER(TRIM(student_id)) = LOWER(TRIM($2)) 
+                OR LOWER(TRIM(user_email)) = LOWER(TRIM($3))
+            );
         `, [id, student_id, user_email]);
 
         if (existingReg.rows.length > 0) {
             await client.query('ROLLBACK');
             return res.status(400).json({
                 success: false,
-                message: "You have already registered for this event (matching SAP ID or email found)!"
+                message: "You have already registered for this event! Your digital pass is already active in your account."
             });
         }
 
@@ -551,6 +554,71 @@ app.post('/api/events', async (req: Request, res: Response) => {
 // 8. MULTI-PORTAL INSTITUTIONAL LOGIN API (Strict Email & Role Guard)
 // Endpoint: POST /api/auth/login
 // =================================================================
+app.post('/api/auth/register', async (req: Request, res: Response) => {
+    try {
+        const { name, email, password, phone, department, college } = req.body;
+
+        if (!name || !email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing required fields: name, email, and password are required."
+            });
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+
+        // Check if user already exists
+        const existing = await pool.query(`SELECT id FROM users WHERE LOWER(email) = $1`, [normalizedEmail]);
+        if (existing.rows.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: "An account with this institutional email already exists. Please sign in."
+            });
+        }
+
+        // Hash the password with bcrypt
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        const newUserResult = await pool.query(`
+            INSERT INTO users (
+                name, email, password_hash, role, phone, department, college, status
+            ) VALUES ($1, $2, $3, 'USER', $4, $5, $6, 'ACTIVE')
+            RETURNING id, name, email, role, department, college;
+        `, [
+            name,
+            normalizedEmail,
+            hashedPassword,
+            phone || null,
+            department || 'Computer Science',
+            college || 'UPES Dehradun'
+        ]);
+
+        const newUser = newUserResult.rows[0];
+
+        // Generate JWT token
+        const jwtSecret = process.env.JWT_SECRET || 'fallback_secret_key_2026';
+        const token = jwt.sign(
+            { id: newUser.id, email: newUser.email, name: newUser.name, role: newUser.role },
+            jwtSecret,
+            { expiresIn: '7d' }
+        );
+
+        res.status(201).json({
+            success: true,
+            message: `Account created successfully! Welcome, ${newUser.name}.`,
+            token,
+            user: newUser
+        });
+    } catch (error) {
+        console.error("Student registration error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Internal server error registering student."
+        });
+    }
+});
+
 app.post('/api/auth/login', async(req: Request, res: Response) => {
     try{
         const{email,password, portal} = req.body;
@@ -978,6 +1046,641 @@ app.post('/api/auth/reset-password', async (req: Request, res: Response) => {
         });
     }
 });
+// =================================================================
+// 14. STUDENT OC APPLICATION: SUBMIT REQUEST
+// Endpoint: POST /api/oc/apply
+// =================================================================
+app.post('/api/oc/apply', async (req: Request, res: Response) => {
+    try {
+        const {
+            user_name,
+            user_email,
+            user_phone,
+            event_id,
+            department,
+            responsibility_preference,
+            student_id,
+            course,
+            year_level
+        } = req.body;
+
+        if (!user_name || !user_email || !event_id) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing required fields: user_name, user_email, and event_id are required."
+            });
+        }
+
+        // 1. Fetch event name from events table
+        const eventRes = await pool.query('SELECT name FROM events WHERE id = $1', [event_id]);
+        if (eventRes.rows.length === 0) {
+            return res.status(404).json({ success: false, message: "Selected event not found." });
+        }
+        const eventName = eventRes.rows[0].name;
+
+        // 2. Check if student already has a pending application for this event
+        const existingApp = await pool.query(`
+            SELECT id, status FROM registrations
+            WHERE LOWER(user_email) = LOWER($1) AND event_id = $2 AND registration_type = 'OC_TEAM';
+        `, [user_email, event_id]);
+
+        if (existingApp.rows.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: `You have already applied for the Organizing Committee of ${eventName}!`
+            });
+        }
+
+        // 3. Insert into registrations as PENDING
+        const result = await pool.query(`
+            INSERT INTO registrations (
+                event_id, 
+                event_name, 
+                user_name, 
+                user_email, 
+                user_phone,
+                college, 
+                course, 
+                year_level, 
+                student_id,
+                registration_type, 
+                oc_department, 
+                oc_responsibility_preference, 
+                status
+            ) VALUES ($1, $2, $3, $4, $5, 'UPES Dehradun', $6, $7, $8, 'OC_TEAM', $9, $10, 'PENDING')
+            RETURNING id, registration_date;
+        `, [
+            event_id,
+            eventName,
+            user_name,
+            user_email,
+            user_phone || 'N/A',
+            course || 'Computer Science',
+            year_level || '3rd Year',
+            student_id || 'SAP-UPES',
+            department || 'Stage & Technical',
+            responsibility_preference || 'Event Operations'
+        ]);
+
+        res.status(201).json({
+            success: true,
+            message: "🎉 Your volunteer application has been submitted to Faculty Admin Dr. Rajesh Sharma!",
+            application_id: result.rows[0].id
+        });
+
+    } catch (error) {
+        console.error("OC Application error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to submit OC application."
+        });
+    }
+});
+
+// =================================================================
+// 15. ADMIN: FETCH ALL OC VOLUNTEER APPLICATIONS
+// Endpoint: GET /api/admin/oc-applications
+// =================================================================
+app.get('/api/admin/oc-applications', async (req: Request, res: Response) => {
+    try {
+        const result = await pool.query(`
+            SELECT 
+                id, 
+                event_id, 
+                event_name, 
+                user_name, 
+                user_email, 
+                user_phone, 
+                course, 
+                year_level, 
+                student_id, 
+                oc_department, 
+                oc_responsibility_preference, 
+                status, 
+                registration_date
+            FROM registrations
+            WHERE registration_type = 'OC_TEAM'
+            ORDER BY registration_date DESC;
+        `);
+
+        res.status(200).json({
+            success: true,
+            count: result.rows.length,
+            data: result.rows
+        });
+    } catch (error) {
+        console.error("Error fetching OC applications:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch OC applications."
+        });
+    }
+});
+
+// =================================================================
+// 16. ADMIN: APPROVE OC VOLUNTEER & ISSUE OFFICIAL HANDLE
+// Endpoint: POST /api/admin/approve-oc
+// =================================================================
+app.post('/api/admin/approve-oc', async (req: Request, res: Response) => {
+    try {
+        const { application_id } = req.body;
+
+        if (!application_id) {
+            return res.status(400).json({ success: false, message: "Missing application_id." });
+        }
+
+        // 1. Fetch application record
+        const appRes = await pool.query('SELECT * FROM registrations WHERE id = $1', [application_id]);
+        if (appRes.rows.length === 0) {
+            return res.status(404).json({ success: false, message: "Application record not found." });
+        }
+        const appData = appRes.rows[0];
+
+        // 2. Generate official OC handle: e.g. "srijita.oc@upes.ac.in"
+        const cleanName = appData.user_name.trim().toLowerCase().split(' ')[0].replace(/[^a-z0-9]/g, '');
+        const officialOcEmail = `${cleanName}.oc@upes.ac.in`;
+
+        // 3. Generate activation token
+        const activationToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
+
+        // 4. Create or update user account in users table with role 'TEAM' & status 'PENDING_ACTIVATION'
+        const existingUser = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [officialOcEmail]);
+        let userId: string;
+
+        if (existingUser.rows.length > 0) {
+            userId = existingUser.rows[0].id;
+            await pool.query(`
+                UPDATE users 
+                SET status = 'PENDING_ACTIVATION', activation_token = $1 
+                WHERE id = $2;
+            `, [activationToken, userId]);
+        } else {
+            const newUser = await pool.query(`
+                INSERT INTO users (
+                    name, email, password_hash, role, department, college, status, activation_token
+                ) VALUES ($1, $2, 'UNSET', 'TEAM', $3, 'UPES Dehradun', 'PENDING_ACTIVATION', $4)
+                RETURNING id;
+            `, [appData.user_name, officialOcEmail, appData.oc_department || 'Event Committee', activationToken]);
+            userId = newUser.rows[0].id;
+        }
+
+        // 5. Add to team_members roster
+        await pool.query(`
+            INSERT INTO team_members (
+                user_id, name, email, department, year_level, role, assigned_event_id, assigned_event_name, responsibility, status
+            ) VALUES ($1, $2, $3, $4, '3rd Year', 'Volunteer', $5, $6, $7, 'ACTIVE');
+        `, [
+            userId,
+            appData.user_name,
+            officialOcEmail,
+            appData.oc_department || 'Event Committee',
+            appData.event_id,
+            appData.event_name,
+            appData.oc_responsibility_preference || 'Stage & Technical Operations'
+        ]);
+
+        // 6. Mark the application CONFIRMED
+        await pool.query("UPDATE registrations SET status = 'CONFIRMED' WHERE id = $1", [application_id]);
+
+        res.status(200).json({
+            success: true,
+            message: `Official OC account created for ${appData.user_name}! Handle: ${officialOcEmail}`,
+            official_email: officialOcEmail,
+            activation_token: activationToken
+        });
+
+    } catch (error) {
+        console.error("Error approving OC application:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to approve OC application."
+        });
+    }
+});
+
+// =================================================================
+// 17. STUDENT PORTAL: CHECK OC INVITATION / APPROVAL STATUS
+// Endpoint: GET /api/user/oc-status
+// =================================================================
+app.get('/api/user/oc-status', async (req: Request, res: Response) => {
+    try {
+        const { email } = req.query;
+        if (!email) {
+            return res.status(400).json({ success: false, message: "Missing email parameter." });
+        }
+
+        const regRes = await pool.query(`
+            SELECT * FROM registrations 
+            WHERE LOWER(user_email) = LOWER($1) AND registration_type = 'OC_TEAM'
+            ORDER BY registration_date DESC LIMIT 1;
+        `, [email]);
+
+        if (regRes.rows.length === 0) {
+            return res.json({ success: true, has_application: false });
+        }
+
+        const reg = regRes.rows[0];
+        if (reg.status === 'PENDING') {
+            return res.json({
+                success: true,
+                has_application: true,
+                status: 'PENDING',
+                event_name: reg.event_name,
+                department: reg.oc_department
+            });
+        }
+
+        // If CONFIRMED, look up official handle & activation status in users table
+        const cleanName = reg.user_name.trim().toLowerCase().split(' ')[0].replace(/[^a-z0-9]/g, '');
+        const officialOcEmail = `${cleanName}.oc@upes.ac.in`;
+
+        const userRes = await pool.query(`
+            SELECT status, activation_token 
+            FROM users 
+            WHERE LOWER(email) = LOWER($1);
+        `, [officialOcEmail]);
+
+        const ocUser = userRes.rows[0];
+
+        return res.json({
+            success: true,
+            has_application: true,
+            status: 'APPROVED',
+            event_name: reg.event_name,
+            department: reg.oc_department,
+            official_email: officialOcEmail,
+            oc_status: ocUser?.status, // 'PENDING_ACTIVATION' or 'ACTIVE'
+            activation_token: ocUser?.activation_token
+        });
+
+    } catch (error) {
+        console.error("Error fetching OC status:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch student OC status."
+        });
+    }
+});
+
+// =================================================================
+// 18. OC TEAM MEMBERS: FETCH ALL MEMBERS FROM DATABASE
+// Endpoint: GET /api/teams
+// =================================================================
+app.get('/api/teams', async (req: Request, res: Response) => {
+    try {
+        const result = await pool.query(`
+            SELECT 
+                id,
+                name,
+                email,
+                phone,
+                department,
+                year_level AS year,
+                role,
+                assigned_event_id AS "assignedEventId",
+                assigned_event_name AS "assignedEventName",
+                responsibility,
+                LOWER(status) AS status
+            FROM team_members
+            ORDER BY id DESC;
+        `);
+
+        res.status(200).json({
+            success: true,
+            count: result.rows.length,
+            data: result.rows
+        });
+    } catch (error) {
+        console.error("Error fetching team members:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch team members from PostgreSQL database."
+        });
+    }
+});
+
+// =================================================================
+// 19. OC TEAM MEMBERS: ADMIN MANUALLY ADDS MEMBER
+// Endpoint: POST /api/teams
+// =================================================================
+app.post('/api/teams', async (req: Request, res: Response) => {
+    try {
+        const {
+            name,
+            email,
+            phone,
+            department,
+            year,
+            role,
+            assignedEventId,
+            assignedEventName,
+            responsibility
+        } = req.body;
+
+        if (!name || !email || !role || !assignedEventId) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing required fields: name, email, role, and assignedEventId are required."
+            });
+        }
+
+        const result = await pool.query(`
+            INSERT INTO team_members (
+                name, email, phone, department, year_level, role, assigned_event_id, assigned_event_name, responsibility, status
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ACTIVE')
+            RETURNING id;
+        `, [
+            name,
+            email,
+            phone || 'N/A',
+            department || 'General Committee',
+            year || '3rd Year',
+            role,
+            assignedEventId,
+            assignedEventName || 'Campus Fest',
+            responsibility || 'Event Operations'
+        ]);
+
+        res.status(201).json({
+            success: true,
+            message: "Team member added to database successfully!",
+            id: result.rows[0].id
+        });
+    } catch (error) {
+        console.error("Error adding team member:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to add team member to database."
+        });
+    }
+});
+
+// =================================================================
+// 20. OC TEAM MEMBERS: REMOVE MEMBER FROM ROSTER
+// Endpoint: DELETE /api/teams/:id
+// =================================================================
+app.delete('/api/teams/:id', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        await pool.query('DELETE FROM team_members WHERE id = $1', [id]);
+        res.status(200).json({
+            success: true,
+            message: "Team member removed successfully from database."
+        });
+    } catch (error) {
+        console.error("Error deleting team member:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to remove team member."
+        });
+    }
+});
+
+// =================================================================
+// 21. REGISTRATIONS: FETCH TICKETS FROM DATABASE
+// Endpoint: GET /api/registrations
+// =================================================================
+app.get('/api/registrations', async (req: Request, res: Response) => {
+    try {
+        const { email, event_id } = req.query;
+
+        let query = `
+            SELECT 
+                id,
+                event_id AS "eventId",
+                event_name AS "eventName",
+                user_name AS "userName",
+                user_email AS "userEmail",
+                user_phone AS "userPhone",
+                college,
+                course,
+                year_level AS year,
+                student_id AS "studentId",
+                LOWER(registration_type) AS "registrationType",
+                status,
+                TO_CHAR(registration_date, 'YYYY-MM-DD') AS "registrationDate"
+            FROM registrations
+        `;
+        const params: any[] = [];
+
+        if (email) {
+            query += ` WHERE LOWER(user_email) = LOWER($1)`;
+            params.push(email);
+        } else if (event_id) {
+            query += ` WHERE event_id = $1`;
+            params.push(event_id);
+        }
+
+        query += ` ORDER BY registration_date DESC;`;
+
+        const result = await pool.query(query, params);
+
+        res.status(200).json({
+            success: true,
+            count: result.rows.length,
+            data: result.rows
+        });
+    } catch (error) {
+        console.error("Error fetching registrations:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch event registrations from PostgreSQL database."
+        });
+    }
+});
+
+// =================================================================
+// 22. TASKS: FETCH ALL TASKS FROM DATABASE
+// Endpoint: GET /api/tasks
+// =================================================================
+app.get('/api/tasks', async (req: Request, res: Response) => {
+    try {
+        const { event_id, assigned_to_id } = req.query;
+
+        let query = `
+            SELECT 
+                id,
+                name,
+                description,
+                assigned_to_name AS "assignedToName",
+                assigned_to_id AS "assignedToId",
+                LOWER(assigned_type) AS "assignedType",
+                event_id AS "eventId",
+                event_name AS "eventName",
+                TO_CHAR(deadline, 'YYYY-MM-DD HH24:MI') AS deadline,
+                LOWER(priority) AS priority,
+                CASE 
+                    WHEN status = 'IN_PROGRESS' THEN 'In Progress'
+                    WHEN status = 'COMPLETED' THEN 'Completed'
+                    WHEN status = 'PENDING' THEN 'Pending'
+                    ELSE INITCAP(status)
+                END AS status,
+                progress,
+                notes
+            FROM tasks
+        `;
+        const params: any[] = [];
+
+        if (event_id) {
+            query += ` WHERE event_id = $1`;
+            params.push(event_id);
+        } else if (assigned_to_id) {
+            query += ` WHERE assigned_to_id = $1`;
+            params.push(assigned_to_id);
+        }
+
+        query += ` ORDER BY deadline ASC;`;
+
+        const result = await pool.query(query, params);
+
+        res.status(200).json({
+            success: true,
+            count: result.rows.length,
+            data: result.rows
+        });
+    } catch (error) {
+        console.error("Error fetching tasks:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch tasks from PostgreSQL database."
+        });
+    }
+});
+
+// =================================================================
+// 23. TASKS: ADMIN CREATES NEW TASK
+// Endpoint: POST /api/tasks
+// =================================================================
+app.post('/api/tasks', async (req: Request, res: Response) => {
+    try {
+        const {
+            eventId,
+            eventName,
+            name,
+            description,
+            assignedToName,
+            assignedToId,
+            assignedType,
+            deadline,
+            priority
+        } = req.body;
+
+        if (!name || !eventId || !assignedToName) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing required fields: name, eventId, and assignedToName are required."
+            });
+        }
+
+        const result = await pool.query(`
+            INSERT INTO tasks (
+                event_id, 
+                event_name, 
+                name, 
+                description, 
+                assigned_to_name, 
+                assigned_to_id, 
+                assigned_type, 
+                deadline, 
+                priority, 
+                status, 
+                progress
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'PENDING', 0)
+            RETURNING id;
+        `, [
+            eventId,
+            eventName || 'Campus Fest',
+            name,
+            description || '',
+            assignedToName,
+            assignedToId || 'team-1',
+            assignedType ? assignedType.toUpperCase() : 'MEMBER',
+            deadline || new Date(),
+            priority ? priority.toUpperCase() : 'MEDIUM'
+        ]);
+
+        res.status(201).json({
+            success: true,
+            message: "Task created and assigned successfully in PostgreSQL!",
+            id: result.rows[0].id
+        });
+    } catch (error) {
+        console.error("Error creating task:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to create task in database."
+        });
+    }
+});
+
+// =================================================================
+// 24. BUDGET & EXPENSES: FETCH LIVE FINANCIALS FOR EVENT
+// Endpoint: GET /api/budget/:eventId
+// =================================================================
+app.get('/api/budget/:eventId', async (req: Request, res: Response) => {
+    try {
+        const { eventId } = req.params;
+
+        const budgetRes = await pool.query(`
+            SELECT 
+                b.id,
+                b.event_id AS "eventId",
+                e.name AS "eventName",
+                b.total_budget::float AS "totalBudget",
+                b.allocated::float AS allocated,
+                b.spent::float AS spent
+            FROM event_budgets b
+            JOIN events e ON e.id = b.event_id
+            WHERE b.event_id = $1;
+        `, [eventId]);
+
+        if (budgetRes.rows.length === 0) {
+            return res.status(404).json({ success: false, message: "No budget found for this event." });
+        }
+
+        const budget = budgetRes.rows[0];
+
+        const expenseRes = await pool.query(`
+            SELECT 
+                id,
+                budget_id AS "budgetId",
+                event_id AS "eventId",
+                category,
+                title,
+                amount::float AS amount,
+                TO_CHAR(expense_date, 'YYYY-MM-DD') AS date,
+                spent_by AS "spentBy",
+                LOWER(status) AS status,
+                notes
+            FROM expenses
+            WHERE event_id = $1
+            ORDER BY expense_date DESC;
+        `, [eventId]);
+
+        // Calculate category breakdowns
+        const categoryMap = new Map<string, { category: string; allocatedAmount: number; spentAmount: number }>();
+        for (const exp of expenseRes.rows) {
+            const existing = categoryMap.get(exp.category) || { category: exp.category, allocatedAmount: 50000, spentAmount: 0 };
+            existing.spentAmount += exp.amount;
+            categoryMap.set(exp.category, existing);
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                budget: {
+                    ...budget,
+                    categories: Array.from(categoryMap.values())
+                },
+                expenses: expenseRes.rows
+            }
+        });
+    } catch (error) {
+        console.error("Error fetching event budget:", error);
+        res.status(500).json({ success: false, message: "Failed to fetch event budget." });
+    }
+});
+
 // =================================================================
 // START THE SERVER
 // =================================================================
