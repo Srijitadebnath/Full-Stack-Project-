@@ -1,0 +1,37 @@
+import { Submission } from '../types';
+
+export const mockSubmissions: Submission[] = [
+  {
+    id: 'sub-701',
+    taskId: 'tsk-401',
+    taskName: 'Main Stage JBL Sound & LED Rigging',
+    eventId: 'evt-101',
+    eventName: 'TechFest UPES 2026',
+    submittedById: 'user-team-2',
+    submittedByName: 'Aarav Verma (Sound OC Lead)',
+    submittedByRole: 'team',
+    submissionTime: 'Today at 11:30 AM',
+    description: 'Completed truss rigging and mounted LED panels with OC team volunteers. Sound test passed.',
+    type: 'image',
+    imageUrl: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&q=80&w=600',
+    status: 'Under Review',
+    feedback: 'Pending final noise level clearance from venue director.',
+  },
+  {
+    id: 'sub-702',
+    taskId: 'tsk-403',
+    taskName: 'Hackathon High-Speed Wi-Fi & Extension Cables',
+    eventId: 'evt-103',
+    eventName: 'AI & Future Tech Hackathon',
+    submittedById: 'team-204',
+    submittedByName: 'Arjun Reddy (Technical OC)',
+    submittedByRole: 'team',
+    submissionTime: 'Yesterday at 04:15 PM',
+    description: 'Tested all 40 power extension strips and verified 500 Mbps dual-band Wi-Fi connection.',
+    type: 'voice',
+    voiceUrl: 'https://example.com/audio/voice_update_702.mp3',
+    voiceDurationSeconds: 42,
+    status: 'Approved',
+    feedback: 'Great work Arjun! Power load check completed.',
+  },
+];
