@@ -41,6 +41,9 @@ app.get('/api/events', async (req: Request, res: Response) => {
                 (capacity - registration_count) AS remaining_seats,
                 status, 
                 category, 
+                budget::float AS budget,
+                budget_used::float AS budget_used,
+                image_url,
                 organizer
             FROM events
             ORDER BY event_date ASC;
@@ -408,10 +411,22 @@ app.post('/api/expenses', async (req: Request, res: Response) => {
             if (budgetLookup.rows.length > 0) {
                 finalBudgetId = budgetLookup.rows[0].id;
             } else {
-                return res.status(400).json({
-                    success: false,
-                    message: "No approved budget found for this event."
-                });
+                // Auto-create budget for this event from events table
+                const evLookup = await pool.query(`SELECT id, budget FROM events WHERE id = $1;`, [event_id]);
+                if (evLookup.rows.length > 0) {
+                    const bgtVal = evLookup.rows[0].budget || 0;
+                    const createdBgt = await pool.query(`
+                        INSERT INTO event_budgets (event_id, total_budget, allocated, spent)
+                        VALUES ($1, $2, $2, 0.00)
+                        RETURNING id;
+                    `, [event_id, bgtVal]);
+                    finalBudgetId = createdBgt.rows[0].id;
+                } else {
+                    return res.status(400).json({
+                        success: false,
+                        message: "No event found with this ID to link expenses."
+                    });
+                }
             }
         }
 
@@ -484,7 +499,8 @@ app.post('/api/events', async (req: Request, res: Response) => {
             capacity,
             category,
             budget,
-            organizer
+            organizer,
+            image_url
         } = req.body;
 
         if (!name || !event_date || !venue || !capacity || !category) {
@@ -509,8 +525,9 @@ app.post('/api/events', async (req: Request, res: Response) => {
                 category, 
                 budget, 
                 budget_used, 
-                organizer
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, 'UPCOMING', $9, $10, 0.00, $11)
+                organizer,
+                image_url
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, 'UPCOMING', $9, $10, 0.00, $11, $12)
             RETURNING *;
         `, [
             name,
@@ -523,7 +540,8 @@ app.post('/api/events', async (req: Request, res: Response) => {
             capacity,
             category,
             budget || 0.00,
-            organizer || 'Student Affairs'
+            organizer || 'Student Affairs',
+            image_url || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&q=80&w=1000'
         ]);
 
         const createdEvent = newEventResult.rows[0];
@@ -1634,11 +1652,25 @@ app.get('/api/budget/:eventId', async (req: Request, res: Response) => {
             WHERE b.event_id = $1;
         `, [eventId]);
 
+        let budget;
         if (budgetRes.rows.length === 0) {
-            return res.status(404).json({ success: false, message: "No budget found for this event." });
+            // Auto-initialize an event_budgets record if the event exists
+            const eventCheck = await pool.query(`SELECT id, name, budget::float AS budget FROM events WHERE id = $1`, [eventId]);
+            if (eventCheck.rows.length > 0) {
+                const ev = eventCheck.rows[0];
+                const totalBgt = ev.budget || 0;
+                const newBudgetRes = await pool.query(`
+                    INSERT INTO event_budgets (event_id, total_budget, allocated, spent)
+                    VALUES ($1, $2, $2, 0.00)
+                    RETURNING id, event_id AS "eventId", total_budget::float AS "totalBudget", allocated::float AS allocated, spent::float AS spent;
+                `, [ev.id, totalBgt]);
+                budget = { ...newBudgetRes.rows[0], eventName: ev.name };
+            } else {
+                return res.status(404).json({ success: false, message: "No event found with this ID." });
+            }
+        } else {
+            budget = budgetRes.rows[0];
         }
-
-        const budget = budgetRes.rows[0];
 
         const expenseRes = await pool.query(`
             SELECT 
@@ -1678,6 +1710,278 @@ app.get('/api/budget/:eventId', async (req: Request, res: Response) => {
     } catch (error) {
         console.error("Error fetching event budget:", error);
         res.status(500).json({ success: false, message: "Failed to fetch event budget." });
+    }
+});
+
+// =================================================================
+// 25. WORK PROOF SUBMISSIONS APIS (OC Task Submissions & Dean Review)
+// =================================================================
+
+// A. GET ALL SUBMISSIONS (Supports optional ?event_id= filter)
+app.get('/api/submissions', async (req: Request, res: Response) => {
+    try {
+        const { event_id } = req.query;
+        let query = `
+            SELECT 
+                id,
+                task_id AS "taskId",
+                task_name AS "taskName",
+                event_id AS "eventId",
+                event_name AS "eventName",
+                submitted_by_id AS "submittedById",
+                submitted_by_name AS "submittedByName",
+                'team' AS "submittedByRole",
+                TO_CHAR(submission_time, 'YYYY-MM-DD HH24:MI') AS "submissionTime",
+                description,
+                type,
+                image_url AS "imageUrl",
+                status,
+                feedback
+            FROM submissions
+        `;
+        const params: any[] = [];
+
+        if (event_id) {
+            query += ` WHERE event_id = $1`;
+            params.push(event_id);
+        }
+
+        query += ` ORDER BY submission_time DESC;`;
+
+        const result = await pool.query(query, params);
+
+        res.status(200).json({
+            success: true,
+            count: result.rows.length,
+            data: result.rows
+        });
+    } catch (error) {
+        console.error("Error fetching submissions:", error);
+        res.status(500).json({ success: false, message: "Failed to fetch work submissions." });
+    }
+});
+
+// B. CREATE NEW SUBMISSION (OC Member submits work proof)
+app.post('/api/submissions', async (req: Request, res: Response) => {
+    try {
+        const {
+            taskId,
+            taskName,
+            eventId,
+            eventName,
+            submittedById,
+            submittedByName,
+            description,
+            type,
+            imageUrl
+        } = req.body;
+
+        if (!description || !submittedByName) {
+            return res.status(400).json({
+                success: false,
+                message: "Description and submitter name are required."
+            });
+        }
+
+        const newId = `sub-${Date.now()}`;
+
+        const result = await pool.query(`
+            INSERT INTO submissions (
+                id, task_id, task_name, event_id, event_name,
+                submitted_by_id, submitted_by_name, submission_time,
+                description, type, image_url, status, feedback
+            ) VALUES (
+                $1, $2, $3, $4, $5, 
+                $6, $7, NOW(), 
+                $8, $9, $10, 'Under Review', ''
+            )
+            RETURNING 
+                id, 
+                task_id AS "taskId", 
+                task_name AS "taskName", 
+                event_id AS "eventId", 
+                event_name AS "eventName", 
+                submitted_by_id AS "submittedById", 
+                submitted_by_name AS "submittedByName", 
+                TO_CHAR(submission_time, 'YYYY-MM-DD HH24:MI') AS "submissionTime", 
+                description, 
+                type, 
+                image_url AS "imageUrl", 
+                status, 
+                feedback;
+        `, [
+            newId,
+            taskId || 'tsk-101',
+            taskName || 'General Event Task',
+            eventId || 'evt-101',
+            eventName || 'Campus Fest',
+            submittedById || 'team-1',
+            submittedByName,
+            description,
+            type || 'image',
+            imageUrl || 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&q=80&w=600'
+        ]);
+
+        res.status(201).json({
+            success: true,
+            message: "Work submission recorded successfully!",
+            data: result.rows[0]
+        });
+    } catch (error) {
+        console.error("Error creating work submission:", error);
+        res.status(500).json({ success: false, message: "Failed to record work submission." });
+    }
+});
+
+// C. UPDATE SUBMISSION STATUS (Dean/Admin Approves or Requests Revision)
+app.patch('/api/submissions/:id/status', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { status, feedback } = req.body;
+
+        if (!status) {
+            return res.status(400).json({ success: false, message: "Status is required." });
+        }
+
+        const result = await pool.query(`
+            UPDATE submissions
+            SET status = $1, feedback = COALESCE($2, feedback)
+            WHERE id = $3
+            RETURNING 
+                id, 
+                task_id AS "taskId", 
+                task_name AS "taskName", 
+                event_id AS "eventId", 
+                event_name AS "eventName", 
+                submitted_by_id AS "submittedById", 
+                submitted_by_name AS "submittedByName", 
+                TO_CHAR(submission_time, 'YYYY-MM-DD HH24:MI') AS "submissionTime", 
+                description, 
+                type, 
+                image_url AS "imageUrl", 
+                status, 
+                feedback;
+        `, [status, feedback || '', id]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: "Submission not found." });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: `Submission marked as '${status}'`,
+            data: result.rows[0]
+        });
+    } catch (error) {
+        console.error("Error updating submission status:", error);
+        res.status(500).json({ success: false, message: "Failed to update submission status." });
+    }
+});
+
+// =================================================================
+// 26. VENDOR & OC DEPARTMENTS DIRECTORY APIS
+// =================================================================
+app.get('/api/vendors', async (req: Request, res: Response) => {
+    try {
+        const { event_id } = req.query;
+        let query = `
+            SELECT 
+                id,
+                name,
+                category,
+                contact_person AS "contactPerson",
+                phone,
+                email,
+                assigned_event_id AS "assignedEventId",
+                assigned_event_name AS "assignedEventName",
+                assigned_work AS "assignedWork",
+                status,
+                progress::int AS progress
+            FROM vendors
+        `;
+        const params: any[] = [];
+
+        if (event_id) {
+            query += ` WHERE assigned_event_id = $1`;
+            params.push(event_id);
+        }
+
+        query += ` ORDER BY name ASC;`;
+
+        const result = await pool.query(query, params);
+
+        res.status(200).json({
+            success: true,
+            count: result.rows.length,
+            data: result.rows
+        });
+    } catch (error) {
+        console.error("Error fetching vendors:", error);
+        res.status(500).json({ success: false, message: "Failed to fetch vendors directory." });
+    }
+});
+
+app.post('/api/vendors', async (req: Request, res: Response) => {
+    try {
+        const {
+            name,
+            category,
+            contactPerson,
+            phone,
+            email,
+            assignedEventId,
+            assignedEventName,
+            assignedWork,
+            status
+        } = req.body;
+
+        if (!name || !category) {
+            return res.status(400).json({ success: false, message: "Name and category are required." });
+        }
+
+        const newId = `ven-${Date.now()}`;
+
+        const result = await pool.query(`
+            INSERT INTO vendors (
+                id, name, category, contact_person, phone, email,
+                assigned_event_id, assigned_event_name, assigned_work, status, progress
+            ) VALUES (
+                $1, $2, $3, $4, $5, $6,
+                $7, $8, $9, $10, 0
+            )
+            RETURNING 
+                id,
+                name,
+                category,
+                contact_person AS "contactPerson",
+                phone,
+                email,
+                assigned_event_id AS "assignedEventId",
+                assigned_event_name AS "assignedEventName",
+                assigned_work AS "assignedWork",
+                status,
+                progress::int AS progress;
+        `, [
+            newId,
+            name,
+            category,
+            contactPerson || '',
+            phone || '',
+            email || '',
+            assignedEventId || 'evt-101',
+            assignedEventName || 'TechFest UPES 2026',
+            assignedWork || '',
+            status || 'active'
+        ]);
+
+        res.status(201).json({
+            success: true,
+            message: "Vendor contract added successfully!",
+            data: result.rows[0]
+        });
+    } catch (error) {
+        console.error("Error adding vendor:", error);
+        res.status(500).json({ success: false, message: "Failed to add vendor." });
     }
 });
 

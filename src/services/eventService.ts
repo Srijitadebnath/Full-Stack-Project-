@@ -94,7 +94,8 @@ class EventService {
         capacity: eventData.capacity,
         category: eventData.category,
         budget: eventData.budget,
-        organizer: eventData.organizer
+        organizer: eventData.organizer,
+        image_url: eventData.image
       })
     });
 

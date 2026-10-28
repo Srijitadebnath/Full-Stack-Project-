@@ -1,30 +1,52 @@
 import { Submission, SubmissionStatus } from '../types';
-import { mockSubmissions } from '../data/mockSubmissions';
+
+const API_BASE = 'http://localhost:5000/api';
 
 class SubmissionService {
-  private submissions: Submission[] = [...mockSubmissions];
-
-  async getSubmissions(): Promise<Submission[]> {
-    return Promise.resolve([...this.submissions]);
+  // 1. Fetch live submissions from PostgreSQL
+  async getSubmissions(eventId?: string): Promise<Submission[]> {
+    try {
+      const url = eventId ? `${API_BASE}/submissions?event_id=${eventId}` : `${API_BASE}/submissions`;
+      const res = await fetch(url);
+      const result = await res.json();
+      if (result.success && Array.isArray(result.data)) {
+        return result.data;
+      }
+      return [];
+    } catch (err) {
+      console.error('Failed to fetch submissions from database:', err);
+      return [];
+    }
   }
 
+  // 2. OC Member uploads work proof to PostgreSQL
   async createSubmission(data: Omit<Submission, 'id' | 'submissionTime' | 'status'>): Promise<Submission> {
-    const newSubmission: Submission = {
-      ...data,
-      id: `sub-${Date.now()}`,
-      submissionTime: 'Just now',
-      status: 'Submitted',
-    };
-    this.submissions.unshift(newSubmission);
-    return Promise.resolve(newSubmission);
+    const res = await fetch(`${API_BASE}/submissions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    const result = await res.json();
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to submit work proof');
+    }
+    return result.data;
   }
 
+  // 3. Faculty Admin approves or requests revision
   async updateSubmissionStatus(id: string, status: SubmissionStatus, feedback?: string): Promise<Submission> {
-    const index = this.submissions.findIndex((s) => s.id === id);
-    if (index === -1) throw new Error('Submission not found');
-    this.submissions[index].status = status;
-    if (feedback) this.submissions[index].feedback = feedback;
-    return Promise.resolve({ ...this.submissions[index] });
+    const res = await fetch(`${API_BASE}/submissions/${id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, feedback }),
+    });
+
+    const result = await res.json();
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to update submission status');
+    }
+    return result.data;
   }
 }
 
