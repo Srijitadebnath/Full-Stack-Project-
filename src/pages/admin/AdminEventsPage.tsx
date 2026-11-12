@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Calendar, MapPin, Trash2, Eye, Image as ImageIcon, Sparkles, Building2, Users, DollarSign } from 'lucide-react';
+import { Plus, Search, Calendar, MapPin, Trash2, Eye, Image as ImageIcon, Sparkles, Building2, Users, DollarSign, Upload, X, Check, FileImage, Loader2 } from 'lucide-react';
 import { Event, EventStatus, User } from '../../types';
 import { eventService } from '../../services/eventService';
 import { authService } from '../../services/authService';
 import { PageContainer } from '../../components/layout';
 import { Card, Badge, Button, Input, Select, Modal, Alert } from '../../components/ui';
 import { formatCurrency, formatDate } from '../../utils/formatters';
+import { fileToCompressedBase64, formatFileSize } from '../../utils/imageUtils';
 
 const IMAGE_PRESETS = [
   { label: '💻 Tech / Coding', url: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&q=80&w=1000' },
@@ -24,6 +25,32 @@ export const AdminEventsPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Device file upload state
+  const [posterTab, setPosterTab] = useState<'device' | 'presets' | 'url'>('device');
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [selectedFileSize, setSelectedFileSize] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleDeviceFileSelect = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      alert('Please select a valid image file (PNG, JPG, JPEG, or WEBP).');
+      return;
+    }
+    try {
+      setIsCompressing(true);
+      const base64 = await fileToCompressedBase64(file);
+      setFormData((prev) => ({ ...prev, image: base64 }));
+      setSelectedFileName(file.name);
+      setSelectedFileSize(formatFileSize(file.size));
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to read image');
+    } finally {
+      setIsCompressing(false);
+    }
+  };
 
   // Form State with rich description, criteria, and custom post poster
   const [formData, setFormData] = useState({
@@ -237,39 +264,163 @@ export const AdminEventsPage: React.FC = () => {
               placeholder="e.g. InnovateX: UPES National Hackathon 2026"
             />
 
-            {/* Image Poster Section with Presets */}
+            {/* Event Poster Upload / Selection */}
             <div className="space-y-2">
-              <label className="block text-xs font-medium text-slate-700">Event Poster / Banner Image</label>
-              
-              {/* Presets pills */}
-              <div className="flex flex-wrap gap-1.5">
-                {IMAGE_PRESETS.map((preset) => (
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold text-slate-800">Event Poster / Banner Image</label>
+                <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
                   <button
-                    key={preset.label}
                     type="button"
-                    onClick={() => setFormData({ ...formData, image: preset.url })}
-                    className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all ${
-                      formData.image === preset.url
-                        ? 'bg-purple-50 border-purple-400 text-purple-700 font-medium'
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    onClick={() => setPosterTab('device')}
+                    className={`px-2 py-0.5 text-[10px] rounded-md font-semibold transition-all cursor-pointer ${
+                      posterTab === 'device' ? 'bg-white text-purple-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
-                    {preset.label}
+                    📁 From Device
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => setPosterTab('presets')}
+                    className={`px-2 py-0.5 text-[10px] rounded-md font-semibold transition-all cursor-pointer ${
+                      posterTab === 'presets' ? 'bg-white text-purple-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    ✨ Quick Themes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPosterTab('url')}
+                    className={`px-2 py-0.5 text-[10px] rounded-md font-semibold transition-all cursor-pointer ${
+                      posterTab === 'url' ? 'bg-white text-purple-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    🔗 Paste URL
+                  </button>
+                </div>
               </div>
 
-              <Input
-                placeholder="Or paste custom image URL (https://...)"
-                value={formData.image}
-                onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-              />
+              {/* Tab 1: Device File Upload with Drag & Drop */}
+              {posterTab === 'device' && (
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png, image/jpeg, image/jpg, image/webp"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleDeviceFileSelect(file);
+                    }}
+                  />
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDragging(true);
+                    }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) handleDeviceFileSelect(file);
+                    }}
+                    className={`p-4 border-2 border-dashed rounded-2xl text-center cursor-pointer transition-all ${
+                      isDragging
+                        ? 'border-purple-600 bg-purple-50/70 scale-[1.01]'
+                        : 'border-purple-200 hover:border-purple-400 bg-purple-50/30 hover:bg-purple-50/50'
+                    }`}
+                  >
+                    {isCompressing ? (
+                      <div className="py-2 flex flex-col items-center gap-1.5 text-purple-700 text-xs font-semibold">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Optimizing &amp; preparing your poster image...</span>
+                      </div>
+                    ) : (
+                      <div className="py-1">
+                        <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center mx-auto mb-2 shadow-xs">
+                          <Upload className="w-4 h-4" />
+                        </div>
+                        <p className="text-xs font-semibold text-slate-800">
+                          Click to select poster from your device <span className="text-purple-600 font-bold">or drag and drop</span>
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          PNG, JPG, JPEG, or WEBP (auto-optimized for lightning-fast loading)
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
-              {/* Preview */}
+              {/* Tab 2: Preset Themes */}
+              {posterTab === 'presets' && (
+                <div className="space-y-1.5">
+                  <div className="flex flex-wrap gap-1.5">
+                    {IMAGE_PRESETS.map((preset) => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => {
+                          setFormData({ ...formData, image: preset.url });
+                          setSelectedFileName(preset.label);
+                          setSelectedFileSize(null);
+                        }}
+                        className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                          formData.image === preset.url
+                            ? 'bg-purple-50 border-purple-400 text-purple-700 font-medium'
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 3: Paste Direct URL */}
+              {posterTab === 'url' && (
+                <Input
+                  placeholder="Paste direct poster URL (https://...)"
+                  value={formData.image}
+                  onChange={(e) => {
+                    setFormData({ ...formData, image: e.target.value });
+                    setSelectedFileName(null);
+                    setSelectedFileSize(null);
+                  }}
+                />
+              )}
+
+              {/* Image Preview & Details Card */}
               {formData.image && (
-                <div className="h-24 w-full rounded-xl overflow-hidden border border-slate-200 relative bg-slate-100">
-                  <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
-                  <span className="absolute bottom-1 right-2 text-[10px] bg-black/60 text-white px-2 py-0.5 rounded">Banner Preview</span>
+                <div className="relative h-28 w-full rounded-2xl overflow-hidden border border-purple-200/80 shadow-xs bg-slate-900 group">
+                  <img src={formData.image} alt="Event Poster Preview" className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end justify-between p-3">
+                    <div className="text-white text-xs space-y-0.5">
+                      <span className="font-semibold block truncate max-w-[260px] text-[11px]">
+                        {selectedFileName ? `📄 ${selectedFileName}` : '🖼️ Event Banner Poster'}
+                      </span>
+                      {selectedFileSize && (
+                        <span className="text-[10px] text-purple-200 block">
+                          Size: {selectedFileSize} • Ready for upload
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData({ ...formData, image: '' });
+                        setSelectedFileName(null);
+                        setSelectedFileSize(null);
+                      }}
+                      title="Remove image"
+                      className="px-2 py-1 rounded-lg bg-red-600/80 hover:bg-red-600 text-white text-[10px] font-bold transition-colors cursor-pointer flex items-center gap-1 shadow-sm"
+                    >
+                      <X className="w-3 h-3" />
+                      <span>Remove</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

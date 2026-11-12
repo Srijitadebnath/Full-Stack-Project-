@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { Upload, Mic, Image as ImageIcon, CheckCircle2, FileText, Camera } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { Upload, Mic, Image as ImageIcon, CheckCircle2, FileText, Camera, X, Loader2 } from 'lucide-react';
 import { SubmissionType, Task } from '../../types';
 import { submissionService } from '../../services/submissionService';
 import { taskService } from '../../services/taskService';
 import { authService } from '../../services/authService';
 import { PageContainer } from '../../components/layout';
 import { Card, Button, Input, Select, Alert } from '../../components/ui';
+import { fileToCompressedBase64, formatFileSize } from '../../utils/imageUtils';
 
 // Quick proof photo presets for campus operations
 const PROOF_PHOTO_PRESETS = [
@@ -23,6 +24,32 @@ export const VendorSubmissionsPage: React.FC = () => {
   const [imageUrl, setImageUrl] = useState(PROOF_PHOTO_PRESETS[0].url);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState('OC Volunteer');
+
+  // Device file upload state
+  const [proofTab, setProofTab] = useState<'device' | 'presets' | 'url'>('device');
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [selectedFileSize, setSelectedFileSize] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleProofFileSelect = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      alert('Please select a valid image file (PNG, JPG, JPEG, or WEBP).');
+      return;
+    }
+    try {
+      setIsCompressing(true);
+      const base64 = await fileToCompressedBase64(file);
+      setImageUrl(base64);
+      setSelectedFileName(file.name);
+      setSelectedFileSize(formatFileSize(file.size));
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to process proof photo');
+    } finally {
+      setIsCompressing(false);
+    }
+  };
 
   useEffect(() => {
     const init = async () => {
@@ -122,37 +149,161 @@ export const VendorSubmissionsPage: React.FC = () => {
           {/* 4. Photo Evidence Section */}
           {type === 'image' && (
             <div className="space-y-2">
-              <label className="block text-xs font-medium text-slate-700">Photo Proof Evidence</label>
-              
-              {/* Presets */}
-              <div className="flex flex-wrap gap-1.5">
-                {PROOF_PHOTO_PRESETS.map((p) => (
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold text-slate-800">Photo Proof Evidence</label>
+                <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
                   <button
-                    key={p.label}
                     type="button"
-                    onClick={() => setImageUrl(p.url)}
-                    className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all ${
-                      imageUrl === p.url
-                        ? 'bg-purple-50 border-purple-400 text-purple-700 font-medium'
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    onClick={() => setProofTab('device')}
+                    className={`px-2 py-0.5 text-[10px] rounded-md font-semibold transition-all cursor-pointer ${
+                      proofTab === 'device' ? 'bg-white text-purple-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
-                    {p.label}
+                    📸 From Device
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => setProofTab('presets')}
+                    className={`px-2 py-0.5 text-[10px] rounded-md font-semibold transition-all cursor-pointer ${
+                      proofTab === 'presets' ? 'bg-white text-purple-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    ✨ Presets
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProofTab('url')}
+                    className={`px-2 py-0.5 text-[10px] rounded-md font-semibold transition-all cursor-pointer ${
+                      proofTab === 'url' ? 'bg-white text-purple-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    🔗 URL
+                  </button>
+                </div>
               </div>
 
-              <Input
-                placeholder="Or paste direct image URL (https://...)"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-              />
+              {/* Tab 1: Device File Upload */}
+              {proofTab === 'device' && (
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png, image/jpeg, image/jpg, image/webp"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleProofFileSelect(file);
+                    }}
+                  />
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDragging(true);
+                    }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) handleProofFileSelect(file);
+                    }}
+                    className={`p-4 border-2 border-dashed rounded-2xl text-center cursor-pointer transition-all ${
+                      isDragging
+                        ? 'border-purple-600 bg-purple-50/70 scale-[1.01]'
+                        : 'border-purple-200 hover:border-purple-400 bg-purple-50/30 hover:bg-purple-50/50'
+                    }`}
+                  >
+                    {isCompressing ? (
+                      <div className="py-2 flex flex-col items-center gap-1.5 text-purple-700 text-xs font-semibold">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Optimizing proof photo...</span>
+                      </div>
+                    ) : (
+                      <div className="py-1">
+                        <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center mx-auto mb-2 shadow-xs">
+                          <Camera className="w-4 h-4" />
+                        </div>
+                        <p className="text-xs font-semibold text-slate-800">
+                          Click to attach photo proof from device <span className="text-purple-600 font-bold">or drag and drop</span>
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          Take a photo of stage setup, soundcheck, or venue gate (PNG, JPG, WEBP)
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
-              {/* Image Preview */}
+              {/* Tab 2: Presets */}
+              {proofTab === 'presets' && (
+                <div className="space-y-1.5">
+                  <div className="flex flex-wrap gap-1.5">
+                    {PROOF_PHOTO_PRESETS.map((p) => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => {
+                          setImageUrl(p.url);
+                          setSelectedFileName(p.label);
+                          setSelectedFileSize(null);
+                        }}
+                        className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                          imageUrl === p.url
+                            ? 'bg-purple-50 border-purple-400 text-purple-700 font-medium'
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 3: Direct URL */}
+              {proofTab === 'url' && (
+                <Input
+                  placeholder="Or paste direct image URL (https://...)"
+                  value={imageUrl}
+                  onChange={(e) => {
+                    setImageUrl(e.target.value);
+                    setSelectedFileName(null);
+                    setSelectedFileSize(null);
+                  }}
+                />
+              )}
+
+              {/* Image Preview & Details Card */}
               {imageUrl && (
-                <div className="h-36 w-full rounded-xl overflow-hidden border border-slate-200 relative bg-slate-100">
-                  <img src={imageUrl} alt="Proof Preview" className="w-full h-full object-cover" />
-                  <span className="absolute bottom-1 right-2 text-[10px] bg-black/60 text-white px-2 py-0.5 rounded">Photo Proof Preview</span>
+                <div className="relative h-32 w-full rounded-2xl overflow-hidden border border-purple-200/80 shadow-xs bg-slate-900 group">
+                  <img src={imageUrl} alt="Proof Preview" className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end justify-between p-3">
+                    <div className="text-white text-xs space-y-0.5">
+                      <span className="font-semibold block truncate max-w-[260px] text-[11px]">
+                        {selectedFileName ? `📸 ${selectedFileName}` : '🖼️ Work Proof Photo Attached'}
+                      </span>
+                      {selectedFileSize && (
+                        <span className="text-[10px] text-purple-200 block">
+                          Size: {selectedFileSize} • Verified
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImageUrl('');
+                        setSelectedFileName(null);
+                        setSelectedFileSize(null);
+                      }}
+                      title="Remove image"
+                      className="px-2 py-1 rounded-lg bg-red-600/80 hover:bg-red-600 text-white text-[10px] font-bold transition-colors cursor-pointer flex items-center gap-1 shadow-sm"
+                    >
+                      <X className="w-3 h-3" />
+                      <span>Remove</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

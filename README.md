@@ -7,6 +7,7 @@ An institutional, enterprise-grade, multi-tier web platform built for **UPES Deh
 ## 🌟 Key Highlights
 
 - **Multi-Role Portal Segregation**: 3 dedicated consoles for Students (`/user/*`), Organizing Committee (`/vendor/*`), and Faculty/Deans (`/admin/*`).
+- **Device Image & Poster Uploads**: Native device file pickers with Drag & Drop and client-side HTML5 canvas compression for event poster creation and vendor work proof submission.
 - **AI Operations & RAG Copilot Suite**: Role-based AI assistants grounded in live PostgreSQL records (events, tasks, budgets, vendors, rosters) and campus policy documents.
 - **Dynamic Event Planning Advisor**: Automatically structures unique domain-specific event titles, multi-round competition timelines, strategic budget allocations, and departmental OC rosters without hardcoded templates.
 - **Global Floating Copilot**: Persistent, role-aware floating AI assistant mounted across all authenticated admin and OC pages.
