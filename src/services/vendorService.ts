@@ -1,5 +1,5 @@
 import { Vendor } from '../types';
-const API_BASE = 'http://localhost:5000/api';
+import { API_BASE } from '../config/api';
 class VendorService {
   // 1. Fetch all OC department vendors from PostgreSQL
   async getVendors(): Promise<Vendor[]> {
@@ -41,6 +41,24 @@ class VendorService {
       throw new Error(result.message || 'Failed to add vendor contract');
     }
     return result.data;
+  }
+
+  // 4. Admin deletes a vendor contract
+  async deleteVendor(id: string): Promise<boolean> {
+    try {
+      const token = localStorage.getItem('auth_token') || '';
+      const res = await fetch(`${API_BASE}/vendors/${id}`, {
+        method: 'DELETE',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const result = await res.json();
+      return Boolean(res.ok && result.success);
+    } catch (err) {
+      console.error('Failed to delete vendor from database:', err);
+      return false;
+    }
   }
 }
 export const vendorService = new VendorService();

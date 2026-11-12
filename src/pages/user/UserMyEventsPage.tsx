@@ -3,27 +3,50 @@ import { useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Ticket, ArrowLeft } from 'lucide-react';
 import { Registration } from '../../types';
 import { registrationService } from '../../services/registrationService';
+import { authService } from '../../services/authService';
 import { Card, Badge, Button } from '../../components/ui';
 import { formatDate } from '../../utils/formatters';
 
 export const UserMyEventsPage: React.FC = () => {
   const navigate = useNavigate();
   const [myRegs, setMyRegs] = useState<Registration[]>([]);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
 
   useEffect(() => {
-    registrationService.getRegistrations().then(setMyRegs);
+    authService.getCurrentUser().then((u) => {
+      if (!u?.email) {
+        setIsLoggedIn(false);
+        setMyRegs([]);
+        return;
+      }
+      setIsLoggedIn(true);
+      registrationService.getRegistrations(u.email).then(setMyRegs);
+    });
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#faf9fc] p-4 sm:p-8">
+    <div className="p-4 sm:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <Button variant="outline" size="sm" onClick={() => navigate('/user/home')} icon={<ArrowLeft className="w-4 h-4" />}>
-            Back to Events
+            Back to Dashboard
           </Button>
           <h1 className="text-xl font-bold text-slate-900">My Registered Events</h1>
         </div>
 
+        {!isLoggedIn ? (
+          <Card className="p-8 text-center space-y-3">
+            <Ticket className="w-8 h-8 text-purple-500 mx-auto" />
+            <p className="text-xs text-slate-600">Sign in with your UPES student email to view your personal event passes.</p>
+            <Button size="sm" onClick={() => navigate('/login')}>Sign In Now</Button>
+          </Card>
+        ) : myRegs.length === 0 ? (
+          <Card className="p-8 text-center space-y-3">
+            <Ticket className="w-8 h-8 text-slate-300 mx-auto" />
+            <p className="text-xs text-slate-500">You have not registered for any events yet.</p>
+            <Button size="sm" variant="outline" onClick={() => navigate('/user/home')}>Discover Events</Button>
+          </Card>
+        ) : (
         <div className="space-y-4">
           {myRegs.map((r) => (
             <Card key={r.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -44,6 +67,7 @@ export const UserMyEventsPage: React.FC = () => {
             </Card>
           ))}
         </div>
+        )}
       </div>
     </div>
   );

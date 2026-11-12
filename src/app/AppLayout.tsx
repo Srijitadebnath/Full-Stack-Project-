@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { User } from '../types';
 import { Sidebar, Header } from '../components/layout';
+import { OperationsAIAssistant } from '../components/OperationsAIAssistant';
 
 interface AppLayoutProps {
   user: User | null;
@@ -28,6 +29,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ user }) => {
           <Outlet />
         </main>
       </div>
+
+      {/* Floating Operations AI Assistant (For Admin & OC Team) */}
+      <OperationsAIAssistant user={user} />
     </div>
   );
 };

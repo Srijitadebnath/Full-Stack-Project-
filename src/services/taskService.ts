@@ -1,6 +1,6 @@
 import { Task, TaskStatus } from '../types';
 
-const API_BASE = 'http://localhost:5000/api';
+import { API_BASE } from '../config/api';
 
 class TaskService {
   // Fetch live tasks directly from PostgreSQL database
@@ -68,6 +68,23 @@ class TaskService {
     const result = await res.json();
     if (!result.success) {
       throw new Error(result.message || 'Failed to update task progress in database');
+    }
+  }
+
+  async deleteTask(id: string): Promise<boolean> {
+    try {
+      const token = localStorage.getItem('auth_token') || '';
+      const res = await fetch(`${API_BASE}/tasks/${id}`, {
+        method: 'DELETE',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const result = await res.json();
+      return Boolean(res.ok && result.success);
+    } catch (err) {
+      console.error('Failed to delete task from database:', err);
+      return false;
     }
   }
 }

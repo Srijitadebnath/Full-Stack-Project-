@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Briefcase, Clock, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Briefcase, Clock, CheckCircle2, AlertTriangle, ArrowRight, Sparkles } from 'lucide-react';
 import { Task } from '../../types';
 import { taskService } from '../../services/taskService';
 import { PageContainer } from '../../components/layout';
@@ -22,6 +22,36 @@ export const VendorDashboardPage: React.FC = () => {
       title="Vendor & Team Portal"
       subtitle="Today's work schedule, assigned tasks, and quick progress update panel."
     >
+      {/* OC Operations AI Banner */}
+      <div className="relative overflow-hidden p-5 rounded-3xl bg-gradient-to-r from-purple-800 via-purple-700 to-indigo-800 text-white shadow-xl shadow-purple-950/20 border border-purple-600/50">
+        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-44 h-44 rounded-full bg-purple-400/20 blur-2xl pointer-events-none" />
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1.5 max-w-xl">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[11px] font-semibold text-amber-300">
+              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+              <span>EVENTRA OC Operations Assistant</span>
+            </div>
+            <h3 className="text-base sm:text-lg font-bold tracking-tight">
+              Live Duties, Team Roster &amp; Operational Conduct Guide
+            </h3>
+            <p className="text-xs text-purple-200 leading-relaxed">
+              Have questions about your assigned tasks, work proof submission steps, fellow team members, or campus conduct policies? Ask your AI assistant anytime.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-shrink-0">
+            <button
+              onClick={() => navigate('/vendor/ai')}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white text-purple-900 font-bold text-xs hover:bg-purple-50 transition-all shadow-md hover:shadow-lg cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 text-purple-700" />
+              <span>Open Team AI</span>
+              <ArrowRight className="w-3.5 h-3.5 text-purple-700" />
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <Card className="p-4">

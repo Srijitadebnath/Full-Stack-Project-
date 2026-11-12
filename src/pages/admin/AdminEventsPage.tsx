@@ -78,7 +78,11 @@ export const AdminEventsPage: React.FC = () => {
 
   const handleDeleteEvent = async (id: string, name: string) => {
     if (confirm(`Are you sure you want to delete event "${name}"?`)) {
-      await eventService.deleteEvent(id);
+      const ok = await eventService.deleteEvent(id);
+      if (!ok) {
+        alert('Failed to delete event. Please make sure you are logged in as Admin and try again.');
+        return;
+      }
       loadEvents();
     }
   };

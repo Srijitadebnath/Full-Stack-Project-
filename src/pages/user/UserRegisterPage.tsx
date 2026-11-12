@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { CheckCircle2, ArrowLeft, Ticket, Calendar, MapPin, AlertCircle, Sparkles } from 'lucide-react';
+import { CheckCircle2, ArrowLeft, Ticket, Calendar, MapPin, AlertCircle, Sparkles, QrCode } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { Event, User } from '../../types';
 import { eventService } from '../../services/eventService';
 import { registrationService } from '../../services/registrationService';
@@ -186,6 +187,26 @@ export const UserRegisterPage: React.FC = () => {
               <div className="pt-2 border-t border-white/20 flex items-center justify-between text-[11px] font-mono text-purple-200">
                 <span>Pass ID:</span>
                 <span className="text-white font-bold">{submittedTicket.id}</span>
+              </div>
+
+              {/* 100% Offline Client-Side QR Pass Badge */}
+              <div className="pt-3 border-t border-white/20 flex flex-col items-center justify-center p-3 bg-white rounded-xl text-slate-900 shadow-inner space-y-2">
+                <QRCodeSVG
+                  value={JSON.stringify({
+                    ticketId: submittedTicket.id,
+                    studentId: submittedTicket.studentId,
+                    studentName: submittedTicket.userName,
+                    eventName: submittedTicket.eventName,
+                    issuedBy: 'UPES Campus Operations'
+                  })}
+                  size={140}
+                  level="H"
+                  includeMargin={true}
+                />
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                  <QrCode className="w-3 h-3 text-purple-600" />
+                  Scan at Venue Gate Entrance
+                </span>
               </div>
             </div>
 

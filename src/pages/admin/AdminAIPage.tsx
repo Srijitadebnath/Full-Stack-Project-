@@ -1,155 +1,277 @@
-import React, { useState } from 'react';
-import { Sparkles, Send, CheckCircle2, XCircle, ArrowRight } from 'lucide-react';
-import { aiService, AIMessageResponse, AIProposalAction } from '../../services/aiService';
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  Sparkles,
+  Send,
+  Calendar,
+  CheckSquare,
+  DollarSign,
+  Users,
+  AlertTriangle,
+  RotateCcw,
+} from 'lucide-react';
+import { aiService, AIMessageResponse } from '../../services/aiService';
 import { PageContainer } from '../../components/layout';
-import { Card, Badge, Button, Input } from '../../components/ui';
+import { Card, Badge, Button } from '../../components/ui';
+import { EventProposalCard } from '../../components/EventProposalCard';
+
+function renderFormattedText(text: string) {
+  return text.split('\n').map((line, idx) => {
+    if (!line.trim()) {
+      return <span key={idx} className="block h-2" />;
+    }
+    const parts = line.split(/(\*\*.*?\*\*)/g);
+    return (
+      <span key={idx} className="block leading-relaxed">
+        {parts.map((part, pIdx) => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            return (
+              <strong key={pIdx} className="font-semibold text-slate-900">
+                {part.slice(2, -2)}
+              </strong>
+            );
+          }
+          return <React.Fragment key={pIdx}>{part}</React.Fragment>;
+        })}
+      </span>
+    );
+  });
+}
 
 export const AdminAIPage: React.FC = () => {
   const [messages, setMessages] = useState<AIMessageResponse[]>([
     {
       id: 'msg-init',
       sender: 'ai',
-      text: 'Hello Dr. Rajesh Sharma! I am your Smart Event Operations AI Assistant. You can ask me to propose OC team work allocations, generate optimized budgets, or summarize vendor progress.',
-      timestamp: 'Just now',
+      text: 'Hello Dr. Rajesh Sharma! I am your **EVENTRA Faculty Operations AI Copilot**.\n\nI can analyze real-time event budgets, audit vendor milestones, flag delayed tasks, check seat capacities, and provide structured operational plans (schedules, rounds, budget splits & OC duties) for upcoming campus events.',
+      timestamp: 'Online',
+      sources: ['Live Events DB', 'Budgets & Expenses', 'Tasks Directory'],
     },
   ]);
   const [inputPrompt, setInputPrompt] = useState('');
   const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, loading]);
 
   const suggestedPrompts = [
-    'Create a work allocation plan for the registered OC members.',
-    'Prepare a budget structure for this event.',
-    'Show me vendors whose work is delayed.',
-    'Which tasks need immediate attention?',
+    {
+      label: 'How should we structure a 2-day AI Hackathon schedule, rounds, and OC duties at MAC Auditorium?',
+      category: 'Event Planning Advisor',
+      icon: <Sparkles className="w-3.5 h-3.5 text-purple-600" />,
+    },
+    {
+      label: 'Analyze budget vs expenses for active events',
+      category: 'Financial Intelligence',
+      icon: <DollarSign className="w-3.5 h-3.5 text-emerald-600" />,
+    },
+    {
+      label: 'Which tasks or vendors are currently delayed?',
+      category: 'Operational Audit',
+      icon: <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />,
+    },
+    {
+      label: 'What is our overall seat capacity and registration status across events?',
+      category: 'Capacity Audit',
+      icon: <Calendar className="w-3.5 h-3.5 text-sky-600" />,
+    },
+    {
+      label: 'Propose work allocations for registered OC members',
+      category: 'Team Management',
+      icon: <Users className="w-3.5 h-3.5 text-indigo-600" />,
+    },
   ];
 
   const handleSendPrompt = async (textToSend?: string) => {
-    const prompt = textToSend || inputPrompt;
-    if (!prompt.trim()) return;
+    const prompt = (textToSend ?? inputPrompt).trim();
+    if (!prompt || loading) return;
 
     const userMsg: AIMessageResponse = {
       id: `user-msg-${Date.now()}`,
       sender: 'user',
       text: prompt,
-      timestamp: 'Just now',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
     setMessages((prev) => [...prev, userMsg]);
-    setInputPrompt('');
+    if (!textToSend) setInputPrompt('');
     setLoading(true);
 
-    const aiRes = await aiService.askAI(prompt);
-    setMessages((prev) => [...prev, aiRes]);
-    setLoading(false);
+    try {
+      const history = messages
+        .filter((m) => m.id !== 'msg-init')
+        .slice(-6)
+        .map((m) => ({ sender: m.sender, text: m.text }));
+
+      const aiRes = await aiService.askAI(prompt, {
+        role: 'ADMIN',
+        history,
+      });
+
+      setMessages((prev) => [...prev, aiRes]);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unable to connect to AI Assistant.';
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `ai-err-${Date.now()}`,
+          sender: 'ai',
+          text: `⚠️ ${msg}`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          sources: ['Error Handler'],
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleProposalAction = (propId: string, status: 'applied' | 'rejected') => {
-    setMessages((prev) =>
-      prev.map((m) => {
-        if (m.actionProposal && m.actionProposal.id === propId) {
-          return {
-            ...m,
-            actionProposal: { ...m.actionProposal, status },
-          };
-        }
-        return m;
-      })
-    );
+  const handleReset = () => {
+    setMessages([
+      {
+        id: 'msg-init',
+        sender: 'ai',
+        text: 'Chat reset. Hello Dr. Rajesh Sharma! Ask about live campus budgets, task delays, OC crew, or event planning advice.',
+        timestamp: 'Online',
+        sources: ['Live Events DB', 'Budgets & Expenses', 'Tasks Directory'],
+      },
+    ]);
   };
 
   return (
     <PageContainer
-      title="AI Operations Assistant UI"
-      subtitle="Interactive frontend preview interface for AI-assisted event workflows."
+      title="Faculty AI Operations Assistant"
+      subtitle="Real-time campus operational intelligence, live budget auditing, task monitoring, and expert event planning guidance."
     >
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
         {/* Suggested Prompts Sidebar */}
-        <Card className="space-y-3 lg:col-span-1">
-          <div className="flex items-center gap-2 text-purple-700 font-semibold text-xs uppercase tracking-wider">
-            <Sparkles className="w-4 h-4" />
-            <span>Suggested Prompts</span>
+        <Card className="space-y-3 lg:col-span-1 h-fit">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-purple-700 font-bold text-xs uppercase tracking-wider">
+              <Sparkles className="w-4 h-4" />
+              <span>Operational Intelligence</span>
+            </div>
+            <button
+              onClick={handleReset}
+              title="Reset Chat"
+              className="p-1 rounded-lg text-slate-400 hover:text-purple-600 hover:bg-purple-50 transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
           </div>
+
+          <p className="text-[11px] text-slate-500 leading-relaxed">
+            Click any query below to audit live campus data or request structured event schedules and duty allocations:
+          </p>
 
           <div className="space-y-2">
             {suggestedPrompts.map((p, idx) => (
               <button
                 key={idx}
-                onClick={() => handleSendPrompt(p)}
-                className="w-full text-left p-2.5 rounded-xl bg-slate-50 hover:bg-purple-50 hover:text-purple-700 border border-slate-100 text-xs font-medium text-slate-700 transition-all cursor-pointer"
+                onClick={() => handleSendPrompt(p.label)}
+                disabled={loading}
+                className="w-full text-left p-2.5 rounded-xl bg-slate-50 hover:bg-purple-50 hover:border-purple-200 border border-slate-100 text-xs text-slate-700 transition-all cursor-pointer group disabled:opacity-50"
               >
-                "{p}"
+                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-purple-600 mb-1">
+                  {p.icon}
+                  <span>{p.category}</span>
+                </div>
+                <span className="block leading-snug group-hover:text-purple-950 font-medium">
+                  "{p.label}"
+                </span>
               </button>
             ))}
           </div>
         </Card>
 
         {/* AI Chat Window */}
-        <div className="lg:col-span-3 flex flex-col bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden h-[600px]">
-          <div className="p-4 border-b border-slate-100 bg-purple-50/50 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-purple-600 text-white flex items-center justify-center">
-                <Sparkles className="w-4 h-4" />
+        <div className="lg:col-span-3 flex flex-col bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden h-[680px]">
+          {/* Header */}
+          <div className="p-4 border-b border-purple-100 bg-gradient-to-r from-purple-50 via-slate-50 to-indigo-50 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-purple-700 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                <Sparkles className="w-4 h-4 text-amber-300" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-slate-900">Operations AI Workflow Interface</h3>
-                <span className="text-[10px] text-purple-600 font-medium">Frontend Architecture Preview</span>
+                <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <span>EVENTRA Faculty Operations AI</span>
+                  <Badge variant="purple">Live Operations</Badge>
+                </h3>
+                <span className="text-[10px] text-slate-500 font-medium">
+                  Connected to Neon PostgreSQL &amp; Local Llama 3.2 1B
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Conversation Area */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-4">
-            {messages.map((m) => (
-              <div key={m.id} className={`flex ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+          {/* Conversation Stream */}
+          <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50/40">
+            {messages.map((m) => {
+              const isUser = m.sender === 'user';
+              return (
                 <div
-                  className={`max-w-xl p-4 rounded-2xl text-xs sm:text-sm space-y-2 ${
-                    m.sender === 'user'
-                      ? 'bg-purple-600 text-white rounded-br-none'
-                      : 'bg-slate-50 border border-slate-100 text-slate-800 rounded-bl-none'
-                  }`}
+                  key={m.id}
+                  className={`flex gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
                 >
-                  <p>{m.text}</p>
+                  {!isUser && (
+                    <div className="w-7 h-7 rounded-xl bg-purple-700 text-white flex-shrink-0 flex items-center justify-center font-bold text-xs shadow-xs mt-0.5">
+                      ✨
+                    </div>
+                  )}
 
-                  {/* AI Action Proposal Card Preview */}
-                  {m.actionProposal && (
-                    <div className="mt-3 p-3.5 bg-white text-slate-900 rounded-xl border border-purple-200/80 shadow-xs space-y-2">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-bold text-xs text-purple-900">{m.actionProposal.title}</h4>
-                        <Badge variant={m.actionProposal.status === 'applied' ? 'emerald' : m.actionProposal.status === 'rejected' ? 'rose' : 'purple'}>
-                          {m.actionProposal.status}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-slate-600">{m.actionProposal.summary}</p>
+                  <div
+                    className={`max-w-2xl p-4 rounded-2xl text-xs space-y-2 shadow-xs ${
+                      isUser
+                        ? 'bg-purple-700 text-white rounded-br-none'
+                        : 'bg-white border border-slate-200/90 text-slate-800 rounded-tl-none'
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      {renderFormattedText(m.text)}
+                    </div>
 
-                      {/* Action buttons */}
-                      {m.actionProposal.status === 'pending' ? (
-                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleProposalAction(m.actionProposal!.id, 'rejected')}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => handleProposalAction(m.actionProposal!.id, 'applied')}
-                            icon={<CheckCircle2 className="w-3.5 h-3.5" />}
-                          >
-                            Apply Proposal
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="text-[11px] text-emerald-600 font-semibold pt-1">
-                          ✓ Proposal successfully applied to Operations Database
+                    {/* Agentic Event Proposal Action Card */}
+                    {m.proposal && (
+                      <EventProposalCard proposal={m.proposal} />
+                    )}
+
+                    {/* Footer Sources */}
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100/70 text-[10px]">
+                      <span className={isUser ? 'text-purple-200' : 'text-slate-400'}>
+                        {m.timestamp}
+                      </span>
+                      {!isUser && m.sources && m.sources.length > 0 && (
+                        <div className="flex flex-wrap gap-1 justify-end">
+                          {m.sources.map((s, sIdx) => (
+                            <span
+                              key={sIdx}
+                              className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 font-medium text-[9px] border border-purple-100"
+                            >
+                              {s}
+                            </span>
+                          ))}
                         </div>
                       )}
                     </div>
-                  )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {loading && (
+              <div className="flex gap-2.5 justify-start items-center">
+                <div className="w-7 h-7 rounded-xl bg-purple-700 text-white flex-shrink-0 flex items-center justify-center font-bold text-xs shadow-xs">
+                  ✨
+                </div>
+                <div className="p-3 rounded-2xl bg-white border border-slate-200 text-xs text-slate-500 flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-purple-600 animate-ping" />
+                  <span>Synthesizing event blueprint and reviewing campus resources...</span>
                 </div>
               </div>
-            ))}
-            {loading && <div className="text-xs text-slate-400 italic">AI is analyzing event dataset...</div>}
+            )}
+
+            <div ref={messagesEndRef} />
           </div>
 
           {/* Input Bar */}
@@ -158,17 +280,22 @@ export const AdminAIPage: React.FC = () => {
               e.preventDefault();
               handleSendPrompt();
             }}
-            className="p-3 border-t border-slate-100 flex items-center gap-2"
+            className="p-3 bg-white border-t border-slate-200 flex items-center gap-2"
           >
             <input
               type="text"
               value={inputPrompt}
               onChange={(e) => setInputPrompt(e.target.value)}
-              placeholder="Ask AI to allocate team members or generate budget structure..."
-              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm outline-none focus:border-purple-500"
+              placeholder="e.g. Plan a 2-day Robotics Bootcamp next month at MAC Auditorium for 200 students with ₹45,000 budget..."
+              disabled={loading}
+              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-purple-600 focus:bg-white transition-all disabled:opacity-50"
             />
-            <Button type="submit" icon={<Send className="w-3.5 h-3.5" />}>
-              Ask AI
+            <Button
+              type="submit"
+              disabled={loading || !inputPrompt.trim()}
+              icon={<Send className="w-3.5 h-3.5" />}
+            >
+              Send
             </Button>
           </form>
         </div>

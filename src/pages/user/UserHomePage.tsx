@@ -175,73 +175,84 @@ export const UserHomePage: React.FC = () => {
   const categories = ['ALL', 'Technology', 'Cultural', 'Hackathon', 'Sports'];
 
   return (
-    <div className="min-h-screen bg-[#faf9fc] flex flex-col font-sans">
-      
-      {/* Top Campus Navigation */}
-      <nav className="h-16 bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 sm:px-8 flex items-center justify-between sticky top-0 z-30 shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center font-extrabold text-sm shadow-md shadow-purple-600/20">
-            U
-          </div>
+    <div className="flex flex-col font-sans">
+      {/* Student Dashboard Overview Header & Stats */}
+      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <span className="font-extrabold text-slate-900 text-sm tracking-tight block">UPES Fest Operations</span>
-            <span className="text-[10px] text-purple-600 font-semibold uppercase tracking-wider block">Student Discovery Portal</span>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+              {currentUser ? `Welcome back, ${currentUser.name.split(' ')[0]} 👋` : 'Campus Fest Dashboard'}
+            </h1>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Discover UPES campus events, manage your QR entry passes, or ask the EVENTRA AI assistant below.
+            </p>
           </div>
-        </div>
-
-        <div className="flex items-center gap-3 text-xs font-medium">
-          {currentUser ? (
-            <div className="flex items-center gap-2 sm:gap-3">
-              {/* Quick Jump to Admin or OC Portal if authorized */}
-              {currentUser.role === 'admin' && (
-                <button
-                  onClick={() => navigate('/admin/dashboard')}
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold transition-all cursor-pointer"
-                >
-                  <Shield className="w-3.5 h-3.5" />
-                  <span>Admin Console →</span>
-                </button>
-              )}
-              {currentUser.role === 'team' && (
-                <button
-                  onClick={() => navigate('/vendor/dashboard')}
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold transition-all cursor-pointer"
-                >
-                  <UserCheck className="w-3.5 h-3.5" />
-                  <span>OC Work Desk →</span>
-                </button>
-              )}
-
-              {/* User Identity Chip */}
-              <div className="px-3 py-1.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-purple-600 text-white text-[11px] font-bold flex items-center justify-center">
-                  {currentUser.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="text-left hidden sm:block">
-                  <span className="font-bold text-slate-900 block leading-tight">{currentUser.name}</span>
-                  <span className="text-[10px] text-purple-600 font-medium capitalize block">{currentUser.role === 'user' ? 'Student' : currentUser.role}</span>
-                </div>
-              </div>
-
-              {/* Sign Out Button */}
-              <button
-                onClick={handleSignOut}
-                title="Sign Out"
-                className="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => navigate('/login')}
-              className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold transition-all cursor-pointer shadow-md shadow-purple-600/20"
+          {currentUser && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/user/profile')}
+              icon={<UserCheck className="w-3.5 h-3.5 text-purple-600" />}
             >
-              Portal Sign In →
-            </button>
+              My Student Profile
+            </Button>
           )}
         </div>
-      </nav>
+
+        {/* Quick 3-Card Student Stats Bar */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          <Card className="p-4 flex items-center justify-between border border-purple-100/80 bg-white">
+            <div>
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                Upcoming Events
+              </span>
+              <span className="text-xl font-extrabold text-slate-900 mt-0.5 block">
+                {upcomingEvents.length + ongoingEvents.length}
+              </span>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+              <Calendar className="w-5 h-5" />
+            </div>
+          </Card>
+
+          <Card
+            onClick={() => navigate('/user/my-events')}
+            className="p-4 flex items-center justify-between border border-purple-100/80 bg-white hover:border-purple-300 transition-colors cursor-pointer"
+          >
+            <div>
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                My Active Passes
+              </span>
+              <span className="text-xl font-extrabold text-purple-700 mt-0.5 block">
+                {currentUser ? registrations.length : 'Sign In'}
+              </span>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <Ticket className="w-5 h-5" />
+            </div>
+          </Card>
+
+          <Card className="p-4 flex items-center justify-between border border-purple-100/80 bg-white">
+            <div>
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                OC Volunteer Status
+              </span>
+              <span className="text-sm font-bold text-slate-900 mt-1 block">
+                {studentOcStatus?.status === 'APPROVED'
+                  ? studentOcStatus.oc_status === 'ACTIVE'
+                    ? 'Active OC Member'
+                    : 'Approved • Ready to Activate'
+                  : studentOcStatus?.status === 'PENDING'
+                  ? 'Application Under Review'
+                  : 'Open for Applications'}
+              </span>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <Users className="w-5 h-5" />
+            </div>
+          </Card>
+        </div>
+      </div>
 
       {/* Main Two-Column Layout */}
       <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-6">

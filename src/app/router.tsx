@@ -4,6 +4,7 @@ import { User } from '../types';
 import { authService } from '../services/authService';
 
 import { AppLayout } from './AppLayout';
+import { UserLayout } from '../components/layout';
 import { LoginPage } from '../pages/auth/LoginPage';
 
 // Admin Pages
@@ -35,6 +36,7 @@ import { UserEventDetailPage } from '../pages/user/UserEventDetailPage';
 import { UserRegisterPage } from '../pages/user/UserRegisterPage';
 import { UserMyEventsPage } from '../pages/user/UserMyEventsPage';
 import { UserCalendarPage } from '../pages/user/UserCalendarPage';
+import { UserProfilePage } from '../pages/user/UserProfilePage';
 
 // Route Protection Component
 const ProtectedRoute: React.FC<{
@@ -119,12 +121,15 @@ export const AppRouter: React.FC = () => {
         </Route>
 
         {/* Student / Participant Routes (Open to Students & Campus Community) */}
-        <Route path="/user/home" element={<UserHomePage />} />
-        <Route path="/user/events" element={<UserHomePage />} />
-        <Route path="/user/events/:eventId" element={<UserEventDetailPage />} />
-        <Route path="/user/register/:eventId" element={<UserRegisterPage />} />
-        <Route path="/user/my-events" element={<UserMyEventsPage />} />
-        <Route path="/user/calendar" element={<UserCalendarPage />} />
+        <Route element={<UserLayout user={currentUser} onAuthChange={loadUser} />}>
+          <Route path="/user/home" element={<UserHomePage />} />
+          <Route path="/user/events" element={<UserHomePage />} />
+          <Route path="/user/events/:eventId" element={<UserEventDetailPage />} />
+          <Route path="/user/register/:eventId" element={<UserRegisterPage />} />
+          <Route path="/user/my-events" element={<UserMyEventsPage />} />
+          <Route path="/user/calendar" element={<UserCalendarPage />} />
+          <Route path="/user/profile" element={<UserProfilePage />} />
+        </Route>
 
         {/* Default Safe Fallback: Directs to Student Discovery Portal */}
         <Route path="/" element={<Navigate to="/user/home" replace />} />

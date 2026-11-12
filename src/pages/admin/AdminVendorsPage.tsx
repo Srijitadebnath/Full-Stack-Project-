@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Building2, Phone, Mail } from 'lucide-react';
+import { Plus, Building2, Phone, Mail, Trash2 } from 'lucide-react';
 import { Vendor, VendorCategory } from '../../types';
 import { vendorService } from '../../services/vendorService';
 import { PageContainer } from '../../components/layout';
@@ -36,6 +36,17 @@ export const AdminVendorsPage: React.FC = () => {
     await vendorService.addVendor(formData);
     setIsModalOpen(false);
     loadVendors();
+  };
+
+  const handleDeleteVendor = async (id: string, name: string) => {
+    if (confirm(`Are you sure you want to remove vendor "${name}"?`)) {
+      const ok = await vendorService.deleteVendor(id);
+      if (!ok) {
+        alert('Failed to delete vendor. Please make sure you are logged in as Admin and try again.');
+        return;
+      }
+      loadVendors();
+    }
   };
 
   const filtered = vendors.filter((v) => categoryFilter === 'all' || v.category === categoryFilter);
@@ -79,7 +90,17 @@ export const AdminVendorsPage: React.FC = () => {
                 <h4 className="text-sm font-semibold text-slate-900">{v.name}</h4>
                 <p className="text-xs text-slate-500">{v.contactPerson} • {v.phone}</p>
               </div>
-              <Badge variant="cyan">{v.category}</Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="cyan">{v.category}</Badge>
+                <button
+                  onClick={() => handleDeleteVendor(v.id, v.name)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                  title="Delete Vendor"
+                  aria-label={`Delete vendor ${v.name}`}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             <div className="p-3 bg-slate-50 rounded-xl space-y-1 text-xs">

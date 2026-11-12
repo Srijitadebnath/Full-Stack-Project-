@@ -1,3 +1,5 @@
+import { API_BASE } from '../config/api';
+
 export interface AIProposalAction {
   id: string;
   type: 'team_allocation' | 'budget_plan' | 'vendor_issue';
@@ -7,72 +9,81 @@ export interface AIProposalAction {
   status: 'pending' | 'applied' | 'rejected';
 }
 
+export interface EventProposalData {
+  action: 'CREATE_EVENT_PROPOSAL';
+  eventData: {
+    name: string;
+    description: string;
+    category: string;
+    venue: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    registrationDeadline: string;
+    capacity: number;
+    budget: number;
+    organizer: string;
+    image?: string;
+  };
+  suggestedTasks?: {
+    name: string;
+    description: string;
+    priority: 'High' | 'Medium' | 'Low';
+    department?: string;
+  }[];
+}
+
 export interface AIMessageResponse {
   id: string;
   sender: 'user' | 'ai';
   text: string;
   timestamp: string;
+  sources?: string[];
+  mode?: 'RAG_RETRIEVAL' | 'LLM_RAG';
   actionProposal?: AIProposalAction;
+  proposal?: EventProposalData;
 }
 
+export type AssistantRole = 'USER' | 'TEAM' | 'ADMIN';
+
 class AIService {
-  private sampleProposals: Record<string, AIProposalAction> = {
-    team: {
-      id: 'prop-ai-1',
-      type: 'team_allocation',
-      title: 'AI Proposed OC Allocation for TechFest 2026',
-      summary: 'Assign 4 registered OC members to Registration Desk and 2 to Stage Operations based on skill matching.',
-      data: {
-        allocations: [
-          { name: 'Priya Patel', role: 'Stage Lead', reason: 'Previous stage experience' },
-          { name: 'Arjun Reddy', role: 'Registration Desk Head', reason: 'High network proficiency' },
-          { name: 'Tanvi Kapoor', role: 'Sponsorship Coordinator', reason: 'School of Business background' },
-        ],
-      },
-      status: 'pending',
-    },
-    budget: {
-      id: 'prop-ai-2',
-      type: 'budget_plan',
-      title: 'AI Generated Budget Plan for ₹1,70,000 Target',
-      summary: 'Optimized budget allocation across categories based on historical campus event spending.',
-      data: {
-        categories: [
-          { category: 'Decoration', amount: 40000 },
-          { category: 'Food', amount: 60000 },
-          { category: 'Sound', amount: 25000 },
-          { category: 'Marketing', amount: 20000 },
-          { category: 'Photography', amount: 15000 },
-          { category: 'Miscellaneous', amount: 10000 },
-        ],
-        total: 170000,
-      },
-      status: 'pending',
-    },
-  };
-
-  async askAI(prompt: string): Promise<AIMessageResponse> {
-    const lower = prompt.toLowerCase();
-    let replyText = "I've analyzed your event operations dataset. Everything is currently running smoothly.";
-    let proposal: AIProposalAction | undefined = undefined;
-
-    if (lower.includes('work allocation') || lower.includes('oc') || lower.includes('team')) {
-      replyText = "Based on registered OC member profiles and event workload, I've prepared a recommended team allocation proposal:";
-      proposal = { ...this.sampleProposals.team };
-    } else if (lower.includes('budget') || lower.includes('cost') || lower.includes('expense')) {
-      replyText = "Here is an AI-generated budget allocation optimized for your target event scale:";
-      proposal = { ...this.sampleProposals.budget };
-    } else if (lower.includes('delayed') || lower.includes('vendor') || lower.includes('attention')) {
-      replyText = "I scanned all vendor tasks. 'Catering Counter Setup' requires attention due to pending cafeteria space confirmation.";
+  /**
+   * Sends a query to the RAG-ready backend AI endpoint, passing the user's JWT token if available.
+   */
+  async askAI(
+    prompt: string,
+    options?: {
+      role?: AssistantRole;
+      eventId?: string;
+      history?: { sender: 'user' | 'ai'; text: string }[];
+    }
+  ): Promise<AIMessageResponse> {
+    const token = localStorage.getItem('auth_token');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
 
-    return Promise.resolve({
-      id: `ai-msg-${Date.now()}`,
-      sender: 'ai',
-      text: replyText,
-      timestamp: 'Just now',
-      actionProposal: proposal,
+    const res = await fetch(`${API_BASE}/ai/chat`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        prompt,
+        role: options?.role || 'USER',
+        eventId: options?.eventId,
+        history: options?.history,
+      }),
     });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || 'AI Assistant could not respond right now.');
+    }
+
+    return data.data as AIMessageResponse;
   }
 }
 

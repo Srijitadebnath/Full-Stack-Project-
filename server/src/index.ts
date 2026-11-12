@@ -4,7 +4,8 @@ import { pool } from './config/db.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { sendOcActivationEmail, sendPasswordResetEmail } from './Services/mailServices.js';
-import { verifyToken, requireRole } from './middleware/authMiddleware.js';
+import { verifyToken, requireRole, AuthenticateRequest } from './middleware/authMiddleware.js';
+import { handleAssistantQuery, AssistantRole } from './Services/aiAssistantService.js';
 
 const app = express();
 const PORT = 5000;
@@ -486,7 +487,7 @@ app.post('/api/expenses', async (req: Request, res: Response) => {
 // 7. FACULTY ADMIN: CREATE NEW EVENT (HTTP POST)
 // Endpoint: POST /api/events
 // =================================================================
-app.post('/api/events', async (req: Request, res: Response) => {
+app.post('/api/events', verifyToken, requireRole('ADMIN'), async (req: Request, res: Response) => {
     try {
         const {
             name,
@@ -584,6 +585,15 @@ app.post('/api/auth/register', async (req: Request, res: Response) => {
         }
 
         const normalizedEmail = email.trim().toLowerCase();
+
+        // Institutional Validation: Students must sign up with official name.sapid@stu.upes.ac.in pattern
+        const studentEmailPattern = /^[a-z]+\.[0-9]+@stu\.upes\.ac\.in$/;
+        if (!studentEmailPattern.test(normalizedEmail)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid student email format. Must follow the official pattern: firstname.sapid@stu.upes.ac.in (e.g. srijita.13103@stu.upes.ac.in). Names like 'rohan.mehta@stu.upes.ac.in' are not allowed."
+            });
+        }
 
         // Check if user already exists
         const existing = await pool.query(`SELECT id FROM users WHERE LOWER(email) = $1`, [normalizedEmail]);
@@ -746,9 +756,15 @@ app.post('/api/auth/oc-invite', async (req: Request, res: Response) => {
             });
         }
 
-        // 1. Generate official OC email: e.g. "rohan.oc@upes.ac.in"
-        const cleanName = student_name.trim().toLowerCase().split(' ')[0].replace(/[^a-z0-9]/g, '');
-        const officialOcEmail = `${cleanName}.oc@upes.ac.in`;
+        // 1. Generate official OC email based on student's personal email or SAP ID: e.g. "srijita.13103.oc@stu.upes.ac.in"
+        let handlePrefix = student_email.split('@')[0].trim().toLowerCase().replace(/[^a-z0-9.]/g, '');
+        if (!handlePrefix.includes('.')) {
+            const cleanName = student_name.trim().toLowerCase().split(' ')[0].replace(/[^a-z0-9]/g, '');
+            handlePrefix = `${cleanName}.oc`;
+        } else {
+            handlePrefix = `${handlePrefix}.oc`;
+        }
+        const officialOcEmail = `${handlePrefix}@stu.upes.ac.in`;
 
         // 2. Generate secure activation token
         const activationToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
@@ -1199,7 +1215,7 @@ app.get('/api/admin/oc-applications', async (req: Request, res: Response) => {
 // 16. ADMIN: APPROVE OC VOLUNTEER & ISSUE OFFICIAL HANDLE
 // Endpoint: POST /api/admin/approve-oc
 // =================================================================
-app.post('/api/admin/approve-oc', async (req: Request, res: Response) => {
+app.post('/api/admin/approve-oc', verifyToken, requireRole('ADMIN'), async (req: Request, res: Response) => {
     try {
         const { application_id } = req.body;
 
@@ -1214,9 +1230,17 @@ app.post('/api/admin/approve-oc', async (req: Request, res: Response) => {
         }
         const appData = appRes.rows[0];
 
-        // 2. Generate official OC handle: e.g. "srijita.oc@upes.ac.in"
-        const cleanName = appData.user_name.trim().toLowerCase().split(' ')[0].replace(/[^a-z0-9]/g, '');
-        const officialOcEmail = `${cleanName}.oc@upes.ac.in`;
+        // 2. Generate official OC handle: e.g. "srijita.13103.oc@stu.upes.ac.in"
+        const studentEmail = appData.user_email || '';
+        let handlePrefix = studentEmail.split('@')[0].trim().toLowerCase().replace(/[^a-z0-9.]/g, '');
+        if (!handlePrefix.includes('.')) {
+            const cleanName = appData.user_name.trim().toLowerCase().split(' ')[0].replace(/[^a-z0-9]/g, '');
+            const cleanSap = (appData.student_id || 'oc').toLowerCase().replace(/[^a-z0-9]/g, '');
+            handlePrefix = `${cleanName}.${cleanSap}.oc`;
+        } else {
+            handlePrefix = `${handlePrefix}.oc`;
+        }
+        const officialOcEmail = `${handlePrefix}@stu.upes.ac.in`;
 
         // 3. Generate activation token
         const activationToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
@@ -1280,11 +1304,19 @@ app.post('/api/admin/approve-oc', async (req: Request, res: Response) => {
 // 17. STUDENT PORTAL: CHECK OC INVITATION / APPROVAL STATUS
 // Endpoint: GET /api/user/oc-status
 // =================================================================
-app.get('/api/user/oc-status', async (req: Request, res: Response) => {
+app.get('/api/user/oc-status', verifyToken, async (req: AuthenticateRequest, res: Response) => {
     try {
         const { email } = req.query;
         if (!email) {
             return res.status(400).json({ success: false, message: "Missing email parameter." });
+        }
+
+        // Security Guard: Prevent token leak. The logged-in student can ONLY check their own OC status
+        if (req.user && req.user.email.toLowerCase() !== (email as string).trim().toLowerCase() && req.user.role !== 'ADMIN') {
+            return res.status(403).json({
+                success: false,
+                message: "Access forbidden: You cannot view OC invitation tokens belonging to another student."
+            });
         }
 
         const regRes = await pool.query(`
@@ -1309,8 +1341,16 @@ app.get('/api/user/oc-status', async (req: Request, res: Response) => {
         }
 
         // If CONFIRMED, look up official handle & activation status in users table
-        const cleanName = reg.user_name.trim().toLowerCase().split(' ')[0].replace(/[^a-z0-9]/g, '');
-        const officialOcEmail = `${cleanName}.oc@upes.ac.in`;
+        const studentEmail = reg.user_email || '';
+        let handlePrefix = studentEmail.split('@')[0].trim().toLowerCase().replace(/[^a-z0-9.]/g, '');
+        if (!handlePrefix.includes('.')) {
+            const cleanName = reg.user_name.trim().toLowerCase().split(' ')[0].replace(/[^a-z0-9]/g, '');
+            const cleanSap = (reg.student_id || 'oc').toLowerCase().replace(/[^a-z0-9]/g, '');
+            handlePrefix = `${cleanName}.${cleanSap}.oc`;
+        } else {
+            handlePrefix = `${handlePrefix}.oc`;
+        }
+        const officialOcEmail = `${handlePrefix}@stu.upes.ac.in`;
 
         const userRes = await pool.query(`
             SELECT status, activation_token 
@@ -1381,7 +1421,7 @@ app.get('/api/teams', async (req: Request, res: Response) => {
 // 19. OC TEAM MEMBERS: ADMIN MANUALLY ADDS MEMBER
 // Endpoint: POST /api/teams
 // =================================================================
-app.post('/api/teams', async (req: Request, res: Response) => {
+app.post('/api/teams', verifyToken, requireRole('ADMIN'), async (req: Request, res: Response) => {
     try {
         const {
             name,
@@ -1437,7 +1477,7 @@ app.post('/api/teams', async (req: Request, res: Response) => {
 // 20. OC TEAM MEMBERS: REMOVE MEMBER FROM ROSTER
 // Endpoint: DELETE /api/teams/:id
 // =================================================================
-app.delete('/api/teams/:id', async (req: Request, res: Response) => {
+app.delete('/api/teams/:id', verifyToken, requireRole('ADMIN'), async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         await pool.query('DELETE FROM team_members WHERE id = $1', [id]);
@@ -1569,7 +1609,7 @@ app.get('/api/tasks', async (req: Request, res: Response) => {
 // 23. TASKS: ADMIN CREATES NEW TASK
 // Endpoint: POST /api/tasks
 // =================================================================
-app.post('/api/tasks', async (req: Request, res: Response) => {
+app.post('/api/tasks', verifyToken, requireRole('ADMIN'), async (req: Request, res: Response) => {
     try {
         const {
             eventId,
@@ -1982,6 +2022,344 @@ app.post('/api/vendors', async (req: Request, res: Response) => {
     } catch (error) {
         console.error("Error adding vendor:", error);
         res.status(500).json({ success: false, message: "Failed to add vendor." });
+    }
+});
+
+// =================================================================
+// 27. DIRECT CHAT & OPERATIONS MESSENGER APIS (WhatsApp Style)
+// =================================================================
+
+// A. GET ALL CONVERSATIONS (Left Sidebar)
+app.get('/api/chat/conversations', async (req: Request, res: Response) => {
+    try {
+        // Ensure essential channels exist (Operations Central Hub & Dean's Desk)
+        await pool.query(`
+            INSERT INTO conversations (id, participant_name, participant_role, event_id, last_message, last_message_timestamp, unread_count)
+            VALUES 
+            ('conv-hub', 'Campus Fest Operations Hub (All OC & Faculty)', 'all', 'evt-101', 'Stage speakers setup is complete and calibrated.', NOW() - INTERVAL '10 minutes', 0),
+            ('conv-dean', 'Dr. Rajesh Sharma (Faculty Admin & Dean)', 'admin', 'evt-101', 'Faculty administration desk is open. Reach out for approvals and emergencies.', NOW() - INTERVAL '30 minutes', 0)
+            ON CONFLICT (id) DO NOTHING;
+        `);
+
+        let result = await pool.query(`
+            SELECT 
+                id,
+                participant_name AS "participantName",
+                participant_role AS "participantRole",
+                event_id AS "eventId",
+                last_message AS "lastMessage",
+                TO_CHAR(last_message_timestamp, 'HH12:MI AM') AS "lastMessageTimestamp",
+                unread_count AS "unreadCount"
+            FROM conversations
+            ORDER BY 
+                CASE 
+                    WHEN id = 'conv-hub' THEN 1
+                    WHEN id = 'conv-dean' THEN 2
+                    ELSE 3
+                END,
+                last_message_timestamp DESC;
+        `);
+
+        // If conversations table is empty, auto-seed default departmental channels
+        if (result.rows.length <= 2) {
+            await pool.query(`
+                INSERT INTO conversations (id, participant_name, participant_role, event_id, last_message, last_message_timestamp, unread_count)
+                VALUES 
+                ('conv-1', 'Aarav Verma (Sound & Audio OC)', 'team', 'evt-101', 'Stage speakers setup is complete and calibrated.', NOW() - INTERVAL '15 minutes', 1),
+                ('conv-2', 'Sanjay Agarwal (Catering OC)', 'team', 'evt-101', 'Guest refreshment packets have arrived at venue.', NOW() - INTERVAL '45 minutes', 0),
+                ('conv-3', 'Divya Malhotra (Media & Photography OC)', 'team', 'evt-101', 'Drone live stream cameras are positioned.', NOW() - INTERVAL '2 hours', 0),
+                ('conv-4', 'Karan Rathore (Security & Crowd OC)', 'team', 'evt-101', 'Main auditorium gate barricades installed.', NOW() - INTERVAL '4 hours', 0)
+                ON CONFLICT (id) DO NOTHING;
+            `);
+
+            // Seed initial sample messages for conv-1 and conv-hub
+            await pool.query(`
+                INSERT INTO messages (id, conversation_id, sender_id, sender_name, sender_role, content, type, timestamp)
+                VALUES 
+                ('msg-1', 'conv-1', 'user-team-2', 'Aarav Verma', 'team', 'Hello Dr. Sharma, sound team has finished rigging the line array speakers.', 'text', NOW() - INTERVAL '20 minutes'),
+                ('msg-2', 'conv-1', 'user-admin-1', 'Dr. Rajesh Sharma (Dean)', 'admin', 'Great work Aarav! Did you test the wireless microphones for the guest speakers?', 'text', NOW() - INTERVAL '18 minutes'),
+                ('msg-3', 'conv-1', 'user-team-2', 'Aarav Verma', 'team', 'Stage speakers setup is complete and calibrated. Testing mics right now.', 'text', NOW() - INTERVAL '15 minutes'),
+                ('msg-hub-1', 'conv-hub', 'user-admin-1', 'Dr. Rajesh Sharma (Faculty Admin & Dean)', 'admin', 'Welcome all OC Department Leads to the Central Operations Hub! Please report venue status, crowd levels, and sound checks here.', 'text', NOW() - INTERVAL '40 minutes'),
+                ('msg-hub-2', 'conv-hub', 'user-team-2', 'Aarav Verma (Sound & Audio OC)', 'team', 'Sound team has finished rigging the line array speakers. Soundcheck in 10 mins.', 'text', NOW() - INTERVAL '20 minutes'),
+                ('msg-dean-1', 'conv-dean', 'user-admin-1', 'Dr. Rajesh Sharma (Faculty Admin & Dean)', 'admin', 'Faculty Administration private desk is open. Reach out here for emergency approvals or budget sign-offs.', 'text', NOW() - INTERVAL '30 minutes')
+                ON CONFLICT (id) DO NOTHING;
+            `);
+
+            result = await pool.query(`
+                SELECT 
+                    id,
+                    participant_name AS "participantName",
+                    participant_role AS "participantRole",
+                    event_id AS "eventId",
+                    last_message AS "lastMessage",
+                    TO_CHAR(last_message_timestamp, 'HH12:MI AM') AS "lastMessageTimestamp",
+                    unread_count AS "unreadCount"
+                FROM conversations
+                ORDER BY 
+                    CASE 
+                        WHEN id = 'conv-hub' THEN 1
+                        WHEN id = 'conv-dean' THEN 2
+                        ELSE 3
+                    END,
+                    last_message_timestamp DESC;
+            `);
+        }
+
+        res.status(200).json({
+            success: true,
+            data: result.rows
+        });
+    } catch (error) {
+        console.error("Error fetching chat conversations:", error);
+        res.status(500).json({ success: false, message: "Failed to fetch conversations." });
+    }
+});
+
+// B. GET MESSAGES FOR A SPECIFIC CONVERSATION
+app.get('/api/chat/conversations/:id/messages', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        const result = await pool.query(`
+            SELECT 
+                id,
+                conversation_id AS "conversationId",
+                sender_id AS "senderId",
+                sender_name AS "senderName",
+                sender_role AS "senderRole",
+                content,
+                type,
+                file_url AS "fileUrl",
+                TO_CHAR(timestamp, 'HH12:MI AM') AS timestamp
+            FROM messages
+            WHERE conversation_id = $1
+            ORDER BY timestamp ASC;
+        `, [id]);
+
+        // Reset unread count for this conversation when opened
+        await pool.query(`UPDATE conversations SET unread_count = 0 WHERE id = $1;`, [id]);
+
+        res.status(200).json({
+            success: true,
+            data: result.rows
+        });
+    } catch (error) {
+        console.error("Error fetching messages:", error);
+        res.status(500).json({ success: false, message: "Failed to fetch messages." });
+    }
+});
+
+// C. POST A NEW MESSAGE IN A CONVERSATION
+app.post('/api/chat/conversations/:id/messages', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { senderId, senderName, senderRole, content, type, fileUrl } = req.body;
+
+        if (!content || !content.trim()) {
+            return res.status(400).json({ success: false, message: "Message content cannot be empty." });
+        }
+
+        const newMsgId = `msg-${Date.now()}`;
+
+        // 1. Insert message
+        const msgResult = await pool.query(`
+            INSERT INTO messages (
+                id, conversation_id, sender_id, sender_name, sender_role, content, type, file_url, timestamp
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+            RETURNING 
+                id,
+                conversation_id AS "conversationId",
+                sender_id AS "senderId",
+                sender_name AS "senderName",
+                sender_role AS "senderRole",
+                content,
+                type,
+                file_url AS "fileUrl",
+                TO_CHAR(timestamp, 'HH12:MI AM') AS timestamp;
+        `, [
+            newMsgId,
+            id,
+            senderId || 'user-admin-1',
+            senderName || 'Admin',
+            senderRole || 'admin',
+            content.trim(),
+            type || 'text',
+            fileUrl || null
+        ]);
+
+        // 2. Update conversation last message snippet and timestamp
+        await pool.query(`
+            UPDATE conversations
+            SET last_message = $1, last_message_timestamp = NOW()
+            WHERE id = $2;
+        `, [content.trim(), id]);
+
+        res.status(201).json({
+            success: true,
+            message: "Message sent successfully!",
+            data: msgResult.rows[0]
+        });
+    } catch (error) {
+        console.error("Error sending message:", error);
+        res.status(500).json({ success: false, message: "Failed to send message." });
+    }
+});
+
+// =================================================================
+// 28. RAG-READY AI ASSISTANT ENDPOINT (Role & Event Scoped)
+// Endpoint: POST /api/ai/chat
+// =================================================================
+app.post('/api/ai/chat', async (req: Request, res: Response) => {
+    try {
+        const { prompt, role, eventId, history } = req.body;
+
+        if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: "Prompt text is required."
+            });
+        }
+
+        const requestedRole = ((role || 'USER') as string).toUpperCase();
+        if (!['USER', 'TEAM', 'ADMIN'].includes(requestedRole)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid assistant role specified."
+            });
+        }
+
+        // Extract and verify optional JWT token from Authorization header
+        let verifiedUser: { id: string; email: string; name: string; role: string } | null = null;
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.split(' ')[1];
+            const jwtSecret = process.env.JWT_SECRET || 'fallback_secret_key_2026';
+            try {
+                verifiedUser = jwt.verify(token, jwtSecret) as {
+                    id: string;
+                    email: string;
+                    name: string;
+                    role: string;
+                };
+            } catch {
+                verifiedUser = null;
+            }
+        }
+
+        // Enforce strict authentication for OC Team & Faculty Admin assistants
+        if (requestedRole === 'ADMIN' || requestedRole === 'TEAM') {
+            if (!verifiedUser) {
+                return res.status(401).json({
+                    success: false,
+                    message: "Authentication required for Operations and Admin AI Assistants."
+                });
+            }
+            const userRoleUpper = (verifiedUser.role || '').toUpperCase();
+            if (requestedRole === 'ADMIN' && userRoleUpper !== 'ADMIN') {
+                return res.status(403).json({
+                    success: false,
+                    message: "Forbidden: Faculty Admin access required."
+                });
+            }
+            if (requestedRole === 'TEAM' && userRoleUpper !== 'TEAM' && userRoleUpper !== 'ADMIN') {
+                return res.status(403).json({
+                    success: false,
+                    message: "Forbidden: OC Team access required."
+                });
+            }
+        }
+
+        const safeHistory = Array.isArray(history)
+            ? history
+                .filter((h) => h && (h.sender === 'user' || h.sender === 'ai') && typeof h.text === 'string')
+                .slice(-6)
+                .map((h) => ({ sender: h.sender as 'user' | 'ai', text: h.text.slice(0, 1000) }))
+            : [];
+
+        const aiReply = await handleAssistantQuery({
+            prompt: prompt.trim(),
+            role: requestedRole as AssistantRole,
+            eventId: typeof eventId === 'string' ? eventId : undefined,
+            userEmail: verifiedUser?.email,
+            userName: verifiedUser?.name,
+            userId: verifiedUser?.id,
+            history: safeHistory,
+        });
+
+        res.status(200).json({
+            success: true,
+            data: aiReply,
+        });
+    } catch (error) {
+        console.error("Error in AI Assistant endpoint:", error);
+        res.status(500).json({
+            success: false,
+            message: "AI Assistant encountered an internal error processing your request."
+        });
+    }
+});
+
+// =================================================================
+// 25. ADMIN DELETE ENDPOINTS: EVENTS, TASKS, VENDORS
+// =================================================================
+app.delete('/api/events/:id', verifyToken, requireRole('ADMIN'), async (req: Request, res: Response) => {
+    const client = await pool.connect();
+    try {
+        const { id } = req.params;
+        await client.query('BEGIN');
+
+        await client.query('UPDATE vendors SET assigned_event_id = NULL, assigned_event_name = NULL WHERE assigned_event_id = $1', [id]);
+
+        const deleted = await client.query('DELETE FROM events WHERE id = $1 RETURNING id', [id]);
+        if (deleted.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: 'Event not found.' });
+        }
+
+        await client.query('COMMIT');
+        res.status(200).json({ success: true, message: 'Event deleted successfully from database.' });
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Error deleting event:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete event.' });
+    } finally {
+        client.release();
+    }
+});
+
+app.delete('/api/tasks/:id', verifyToken, requireRole('ADMIN'), async (req: Request, res: Response) => {
+    const client = await pool.connect();
+    try {
+        const { id } = req.params;
+        await client.query('BEGIN');
+        await client.query('DELETE FROM submissions WHERE task_id = $1', [id]);
+        const deleted = await client.query('DELETE FROM tasks WHERE id = $1 RETURNING id', [id]);
+        if (deleted.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: 'Task not found.' });
+        }
+        await client.query('COMMIT');
+        res.status(200).json({ success: true, message: 'Task deleted successfully from database.' });
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Error deleting task:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete task.' });
+    } finally {
+        client.release();
+    }
+});
+
+app.delete('/api/vendors/:id', verifyToken, requireRole('ADMIN'), async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const deleted = await pool.query('DELETE FROM vendors WHERE id = $1 RETURNING id', [id]);
+        if (deleted.rowCount === 0) {
+            return res.status(404).json({ success: false, message: 'Vendor not found.' });
+        }
+        res.status(200).json({ success: true, message: 'Vendor deleted successfully from database.' });
+    } catch (error) {
+        console.error('Error deleting vendor:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete vendor.' });
     }
 });
 

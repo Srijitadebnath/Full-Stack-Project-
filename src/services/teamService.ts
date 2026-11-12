@@ -1,7 +1,7 @@
 import { TeamMember } from '../types';
 import { mockTeams } from '../data/mockTeams';
 
-const API_BASE = 'http://localhost:5000/api';
+import { API_BASE } from '../config/api';
 
 export interface OcApplication {
   id: string;
@@ -113,9 +113,13 @@ class TeamService {
     official_email: string;
     activation_token: string;
   }> {
+    const token = localStorage.getItem('auth_token') || '';
     const res = await fetch(`${API_BASE}/admin/approve-oc`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify({ application_id: applicationId }),
     });
     const result = await res.json();
@@ -130,7 +134,12 @@ class TeamService {
 
   // 4. Student checks their OC status / invitation
   async getStudentOcStatus(email: string): Promise<StudentOcStatus> {
-    const res = await fetch(`${API_BASE}/user/oc-status?email=${encodeURIComponent(email)}`);
+    const token = localStorage.getItem('auth_token') || '';
+    const res = await fetch(`${API_BASE}/user/oc-status?email=${encodeURIComponent(email)}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
     const result = await res.json();
     if (!result.success) {
       throw new Error(result.message || 'Failed to fetch student OC status');

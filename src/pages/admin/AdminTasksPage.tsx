@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, CheckSquare, Clock, AlertTriangle, CheckCircle2, Calendar, UserCheck, Filter } from 'lucide-react';
+import { Plus, CheckSquare, Clock, AlertTriangle, CheckCircle2, Calendar, UserCheck, Filter, Trash2 } from 'lucide-react';
 import { Task, TaskPriority, TaskStatus, Event, TeamMember } from '../../types';
 import { taskService } from '../../services/taskService';
 import { eventService } from '../../services/eventService';
@@ -56,6 +56,17 @@ export const AdminTasksPage: React.FC = () => {
   useEffect(() => {
     loadData();
   }, []);
+
+  const handleDeleteTask = async (id: string, name: string) => {
+    if (confirm(`Are you sure you want to delete task "${name}"?`)) {
+      const ok = await taskService.deleteTask(id);
+      if (!ok) {
+        alert('Failed to delete task. Please make sure you are logged in as Admin and try again.');
+        return;
+      }
+      loadData();
+    }
+  };
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,9 +164,19 @@ export const AdminTasksPage: React.FC = () => {
                 <p className="text-xs text-slate-500 mt-1">{tsk.description}</p>
               </div>
 
-              <Badge variant={tsk.status === 'Completed' ? 'emerald' : tsk.status === 'In Progress' ? 'purple' : 'amber'}>
-                {tsk.status}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant={tsk.status === 'Completed' ? 'emerald' : tsk.status === 'In Progress' ? 'purple' : 'amber'}>
+                  {tsk.status}
+                </Badge>
+                <button
+                  onClick={() => handleDeleteTask(tsk.id, tsk.name)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                  title="Delete Task"
+                  aria-label={`Delete task ${tsk.name}`}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-slate-50/70 rounded-xl text-xs">

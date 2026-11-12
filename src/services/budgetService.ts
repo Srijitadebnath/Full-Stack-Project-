@@ -1,6 +1,6 @@
 import { EventBudget, Expense } from '../types';
 
-const API_BASE = 'http://localhost:5000/api';
+import { API_BASE } from '../config/api';
 
 class BudgetService {
   // Fetch real event budget from PostgreSQL database

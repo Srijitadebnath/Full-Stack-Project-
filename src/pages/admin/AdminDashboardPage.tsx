@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   ArrowRight,
   Plus,
+  Sparkles,
 } from 'lucide-react';
 import { Event, Task, Vendor, Registration } from '../../types';
 import { eventService } from '../../services/eventService';
@@ -88,6 +89,36 @@ export const AdminDashboardPage: React.FC = () => {
         </Button>
       }
     >
+      {/* AI Operations Copilot Banner */}
+      <div className="relative overflow-hidden p-5 rounded-3xl bg-gradient-to-r from-purple-900 via-purple-800 to-indigo-900 text-white shadow-xl shadow-purple-950/20 border border-purple-700/50">
+        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-44 h-44 rounded-full bg-purple-500/20 blur-2xl pointer-events-none" />
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1.5 max-w-xl">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[11px] font-semibold text-amber-300">
+              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+              <span>EVENTRA Faculty Operations AI</span>
+            </div>
+            <h3 className="text-base sm:text-lg font-bold tracking-tight">
+              Real-Time Campus Operations &amp; Intelligence Copilot
+            </h3>
+            <p className="text-xs text-purple-200 leading-relaxed">
+              Ask about live budget-to-expense ratios, audit delayed vendor tasks, or generate optimized OC work allocation plans across your active events.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-shrink-0">
+            <button
+              onClick={() => navigate('/admin/ai')}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white text-purple-900 font-bold text-xs hover:bg-purple-50 transition-all shadow-md hover:shadow-lg cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 text-purple-700" />
+              <span>Open AI Copilot</span>
+              <ArrowRight className="w-3.5 h-3.5 text-purple-700" />
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* 8 Summary Cards Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card className="p-4">

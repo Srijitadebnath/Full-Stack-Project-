@@ -1,57 +1,65 @@
-import {Request, Response, NextFunction} from 'express';
-import  jwt from 'jsonwebtoken';
+import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
 
-export interface AuthenticateRequest extends Request{
+export interface AuthenticateRequest extends Request {
     user?: {
-        id:string;
-        email:string;
-        name:string;
-        role:string;
+        id: string;
+        email: string;
+        name: string;
+        role: string;
     };
 }
-export const verifyToken = (req:AuthenticateRequest, res:Response, next: NextFunction) => {
+
+export const verifyToken = (req: AuthenticateRequest, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization;
 
-    if(!authHeader || !authHeader.startsWith('Bearer')){
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({
-            success:false,
-            message:"Authentication required: No JWT token provided in Authorization header."
+            success: false,
+            message: "Authentication required: No JWT token provided in Authorization header."
         });
     }
+
     const token = authHeader.split(' ')[1];
-    const jwtSecret = process.env.JWT_SECRET || 'fallback_secret_key_2026';
-    try{
+    const jwtSecret = process.env.JWT_SECRET || 'super_secret_college_event_jwt_key_2026_unbreakable';
+
+    try {
         const decoded = jwt.verify(token, jwtSecret) as {
-            id:string;
-            email:string;
-            name:string;
-            role:string;
-        }
+            id: string;
+            email: string;
+            name: string;
+            role: string;
+        };
         req.user = decoded;
         next();
-    }
-    catch(error){
+    } catch (error) {
         return res.status(401).json({
-            success:false,
-            message:"Authentication failed: Invalid or expired JWT token."
+            success: false,
+            message: "Authentication failed: Invalid or expired JWT token."
         });
     }
 };
 
-export const requireRole = (...allowedRoles: string[]) =>{
-    return (req:AuthenticateRequest, res:Response, next: NextFunction) => {
-        if(!req.user){
+export const requireRole = (...allowedRoles: string[]) => {
+    return (req: AuthenticateRequest, res: Response, next: NextFunction) => {
+        if (!req.user) {
             return res.status(401).json({
-                success:false,
-                message:"Unauthorized: User identity not verified."
+                success: false,
+                message: "Unauthorized: User identity not verified."
             });
         }
-       if(!allowedRoles.includes(req.user.role)){
+
+        // Case-insensitive role comparison (e.g. 'ADMIN' vs 'admin')
+        const userRoleUpper = (req.user.role || '').toUpperCase();
+        const allowedRolesUpper = allowedRoles.map(r => r.toUpperCase());
+
+        if (!allowedRolesUpper.includes(userRoleUpper)) {
             return res.status(403).json({
-                success:false,
-                message:`Forbidden: Access restricted to roles [${allowedRoles.join(', ')}]. Your role is ${req.user.role}.`
-            });      
+                success: false,
+                message: `Forbidden: Access restricted to [${allowedRoles.join(', ')}]. Your role is '${req.user.role}'.`
+            });
         }
-        next(); 
+
+        next();
     };
 };
