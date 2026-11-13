@@ -1,5 +1,4 @@
 import { Task, TaskStatus } from '../types';
-
 import { API_BASE } from '../config/api';
 
 class TaskService {
@@ -34,12 +33,34 @@ class TaskService {
     return this.getTasks(undefined, assigneeId);
   }
 
-  // Admin creates new task directly in PostgreSQL
+  // Admin creates new task directly in PostgreSQL (Strict Bearer Auth)
   async createTask(task: Omit<Task, 'id' | 'progress'>): Promise<Task> {
+    const token =
+      localStorage.getItem('auth_token') ||
+      localStorage.getItem('college_events_auth_token') ||
+      '';
+
+    if (!token) {
+      throw new Error('Authentication required. Please sign in as Faculty Admin to publish tasks.');
+    }
+
     const res = await fetch(`${API_BASE}/tasks`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(task),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        eventId: task.eventId,
+        eventName: task.eventName,
+        name: task.name,
+        description: task.description,
+        assignedToName: task.assignedToName,
+        assignedToId: task.assignedToId || 'team-1',
+        assignedType: task.assignedType ? task.assignedType.toUpperCase() : 'MEMBER',
+        deadline: task.deadline,
+        priority: task.priority ? task.priority.toUpperCase() : 'HIGH',
+      }),
     });
 
     const result = await res.json();
@@ -56,9 +77,17 @@ class TaskService {
 
   // OC Member or Admin updates progress in PostgreSQL
   async updateTaskStatus(taskId: string, status: TaskStatus, progress?: number): Promise<void> {
+    const token =
+      localStorage.getItem('auth_token') ||
+      localStorage.getItem('college_events_auth_token') ||
+      '';
+
     const res = await fetch(`${API_BASE}/tasks/${taskId}/progress`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({
         status: status === 'Completed' ? 'COMPLETED' : status === 'In Progress' ? 'IN_PROGRESS' : 'PENDING',
         progress: progress !== undefined ? progress : status === 'Completed' ? 100 : undefined,
@@ -73,7 +102,11 @@ class TaskService {
 
   async deleteTask(id: string): Promise<boolean> {
     try {
-      const token = localStorage.getItem('auth_token') || '';
+      const token =
+        localStorage.getItem('auth_token') ||
+        localStorage.getItem('college_events_auth_token') ||
+        '';
+
       const res = await fetch(`${API_BASE}/tasks/${id}`, {
         method: 'DELETE',
         headers: {

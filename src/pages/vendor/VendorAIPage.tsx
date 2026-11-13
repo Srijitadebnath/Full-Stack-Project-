@@ -1,7 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, Send, ShieldAlert, Users, CheckSquare, Wrench, AlertCircle, RefreshCw } from 'lucide-react';
 import { PageContainer } from '../../components/layout';
-import { Card, Badge, Button } from '../../components/ui';
+import {
+  GlassCard,
+  PillButton,
+  Chip,
+  Card,
+  Badge,
+  Button,
+} from '../../components/ui';
 import { aiService, AIMessageResponse } from '../../services/aiService';
 import { authService } from '../../services/authService';
 import { User } from '../../types';
@@ -129,42 +136,43 @@ export const VendorAIPage: React.FC = () => {
       subtitle="Grounded in your live assigned tasks, fellow OC roster, and university operational conduct policies."
     >
       <div className="max-w-4xl mx-auto space-y-4">
-        {/* Top Info Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-gradient-to-r from-purple-50 via-slate-50 to-indigo-50 border border-purple-100 rounded-2xl text-xs">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold shadow-sm shadow-purple-200">
-              <Sparkles className="w-4 h-4" />
+        {/* Top Info Bar (Glass Card) */}
+        <GlassCard className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-pink-500 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-purple-600/25">
+              <Sparkles className="w-5 h-5 text-amber-300" />
             </div>
             <div>
-              <div className="font-semibold text-slate-800 flex items-center gap-2">
+              <div className="font-bold text-[#1E1B2E] flex items-center gap-2 text-sm">
                 <span>{currentUser?.name || 'OC Member'}</span>
-                <Badge variant="purple">{currentUser?.department || 'Operations'}</Badge>
+                <Chip variant="purple">{currentUser?.department || 'Operations'}</Chip>
               </div>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-[#8B87A3] mt-0.5">
                 Assigned Event: <strong className="text-purple-700">{currentUser?.assignedEventName || 'Active Campus Event'}</strong>
               </p>
             </div>
           </div>
-          <button
+          <PillButton
+            variant="glass"
+            size="sm"
             onClick={handleClearChat}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors"
-            title="Reset Chat"
+            icon={<RefreshCw className="w-3.5 h-3.5" />}
           >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Reset Chat</span>
-          </button>
-        </div>
+            Reset Chat
+          </PillButton>
+        </GlassCard>
 
         {/* Quick Suggested Prompt Pills */}
         <div className="space-y-1.5">
-          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider px-1">Common Queries</p>
+          <p className="text-[11px] font-bold text-[#8B87A3] uppercase tracking-wider px-1">Common Queries</p>
           <div className="flex flex-wrap gap-2">
             {quickPrompts.map((qp, idx) => (
               <button
                 key={idx}
+                type="button"
                 onClick={() => handleSendMessage(qp.label)}
                 disabled={loading}
-                className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 hover:border-purple-300 hover:bg-purple-50/60 rounded-xl text-xs text-slate-700 font-medium transition-all shadow-sm disabled:opacity-50"
+                className="flex items-center gap-2 px-3.5 py-2 rounded-full neo-raised hover:bg-white text-xs text-[#4B4763] hover:text-purple-700 font-semibold transition-all border border-white/80 cursor-pointer disabled:opacity-50"
               >
                 {qp.icon}
                 <span>{qp.label}</span>
@@ -173,8 +181,8 @@ export const VendorAIPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Chat Window */}
-        <Card className="h-[540px] flex flex-col p-0 overflow-hidden border border-slate-200 shadow-sm">
+        {/* Chat Window (Glass Panel) */}
+        <div className="h-[540px] flex flex-col glass-panel rounded-[28px] border border-white/80 shadow-[0_16px_40px_rgba(124,58,237,0.12)] overflow-hidden">
           {/* Messages Area */}
           <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50/40">
             {messages.map((m) => (
@@ -241,26 +249,28 @@ export const VendorAIPage: React.FC = () => {
               e.preventDefault();
               handleSendMessage();
             }}
-            className="p-3 bg-white border-t border-slate-200 flex gap-2 items-center"
+            className="p-4 bg-white/60 backdrop-blur-md border-t border-purple-500/10 flex gap-2 items-center"
           >
-            <input
-              type="text"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Ask about your assigned duties, other members, submission steps, or conduct policies..."
-              disabled={loading}
-              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs outline-none focus:border-purple-500 focus:bg-white transition-all disabled:opacity-60"
-            />
-            <Button
-              type="submit"
-              size="sm"
-              disabled={loading || !prompt.trim()}
-              icon={<Send className="w-3.5 h-3.5" />}
-            >
-              Send
-            </Button>
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Ask about duties, roster, or conduct rules..."
+                disabled={loading}
+                className="w-full h-11 pl-4 pr-12 neo-inset text-xs sm:text-sm text-[#1E1B2E] placeholder:text-[#8B87A3] focus:outline-none focus:ring-2 focus:ring-purple-500/35 transition-all rounded-full disabled:opacity-50"
+              />
+              <button
+                type="submit"
+                disabled={loading || !prompt.trim()}
+                aria-label="Send prompt"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full btn-primary flex items-center justify-center hover:scale-105 active:scale-95 disabled:opacity-40 transition-all cursor-pointer shadow-xs"
+              >
+                <Send className="w-3.5 h-3.5 text-white" />
+              </button>
+            </div>
           </form>
-        </Card>
+        </div>
       </div>
     </PageContainer>
   );

@@ -3,7 +3,7 @@ import { UserCheck, Mail, Phone, Building2, Calendar, Award, ShieldCheck } from 
 import { User } from '../../types';
 import { authService } from '../../services/authService';
 import { PageContainer } from '../../components/layout';
-import { Card, Badge, Avatar } from '../../components/ui';
+import { GlassCard, Chip, PillButton } from '../../components/ui';
 
 export const VendorProfilePage: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -15,7 +15,10 @@ export const VendorProfilePage: React.FC = () => {
   if (!user) {
     return (
       <PageContainer title="OC Member Profile">
-        <div className="py-8 text-center text-xs text-slate-400">Loading profile data...</div>
+        <div className="py-12 text-center text-xs text-[var(--color-text-muted,#8B87A3)]">
+          <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+          Loading profile data...
+        </div>
       </PageContainer>
     );
   }
@@ -25,91 +28,141 @@ export const VendorProfilePage: React.FC = () => {
       title="Organizing Committee Member Profile"
       subtitle="Verified registration details and assigned event responsibilities for your OC membership."
     >
-      <div className="max-w-3xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto space-y-6">
         {/* Header Profile Banner Card */}
-        <Card className="p-6 space-y-4 border border-purple-100 bg-gradient-to-r from-purple-50/50 to-white">
+        <GlassCard className="p-6 sm:p-8 space-y-4 rounded-3xl">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <Avatar name={user.name} src={user.avatar} size="lg" status="online" />
+              <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#7C3AED] to-[#A855F7] text-white text-2xl font-extrabold flex items-center justify-center shadow-md">
+                {user.name.charAt(0).toUpperCase()}
+              </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-bold text-slate-900">{user.name}</h2>
-                  <Badge variant="purple" dot>Verified OC Member</Badge>
+                  <h2 className="text-xl font-extrabold text-[var(--color-text-heading,#1E1B2E)]">
+                    {user.name}
+                  </h2>
+                  <Chip variant="purple" size="sm">
+                    Verified OC Member
+                  </Chip>
                 </div>
-                <p className="text-xs text-slate-500 mt-0.5">{user.department || 'Computer Science (3rd Year)'}</p>
-                <p className="text-xs text-purple-700 font-semibold mt-1">{user.college || 'UPES Dehradun'}</p>
+                <p className="text-xs text-[var(--color-text-muted,#8B87A3)] mt-0.5">
+                  {user.department || 'Computer Science (3rd Year)'}
+                </p>
+                <p className="text-xs text-purple-700 font-semibold mt-0.5">
+                  {user.college || 'UPES Dehradun'}
+                </p>
               </div>
             </div>
+
+            <Chip variant="success" dot size="md">
+              System Active
+            </Chip>
           </div>
-        </Card>
+        </GlassCard>
 
         {/* Detailed Registration Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Registered Contact Info */}
-          <Card className="space-y-4">
-            <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2">
+          <GlassCard className="p-6 space-y-4 rounded-3xl">
+            <h3 className="text-sm font-bold text-[var(--color-text-heading,#1E1B2E)] border-b border-[rgba(124,58,237,0.08)] pb-2">
               Registered Contact Details
             </h3>
 
             <div className="space-y-3 text-xs">
-              <div className="flex items-center gap-3">
-                <Mail className="w-4 h-4 text-purple-600 shrink-0" />
-                <div>
-                  <span className="text-slate-400 block text-[10px]">Authorized College Email</span>
-                  <span className="font-semibold text-slate-800">{user.email}</span>
+              <div className="flex items-center gap-3 p-3 rounded-2xl neo-inset">
+                <div className="w-8 h-8 rounded-xl neo-raised flex items-center justify-center text-purple-600 shrink-0">
+                  <Mail className="w-4 h-4" />
+                </div>
+                <div className="truncate">
+                  <span className="text-[10px] text-[var(--color-text-muted,#8B87A3)] block">
+                    Authorized College Email
+                  </span>
+                  <span className="font-semibold text-[var(--color-text-heading,#1E1B2E)] truncate block">
+                    {user.email}
+                  </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <Phone className="w-4 h-4 text-purple-600 shrink-0" />
+              <div className="flex items-center gap-3 p-3 rounded-2xl neo-inset">
+                <div className="w-8 h-8 rounded-xl neo-raised flex items-center justify-center text-purple-600 shrink-0">
+                  <Phone className="w-4 h-4" />
+                </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Contact Phone</span>
-                  <span className="font-semibold text-slate-800">{user.phone || '+91 97654 32109'}</span>
+                  <span className="text-[10px] text-[var(--color-text-muted,#8B87A3)] block">
+                    Contact Phone
+                  </span>
+                  <span className="font-semibold text-[var(--color-text-heading,#1E1B2E)]">
+                    {user.phone || '+91 97654 32109'}
+                  </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <Building2 className="w-4 h-4 text-purple-600 shrink-0" />
+              <div className="flex items-center gap-3 p-3 rounded-2xl neo-inset">
+                <div className="w-8 h-8 rounded-xl neo-raised flex items-center justify-center text-purple-600 shrink-0">
+                  <Building2 className="w-4 h-4" />
+                </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Institution & Department</span>
-                  <span className="font-semibold text-slate-800">{user.college || 'UPES Dehradun'} • {user.department || 'B.Tech CSE'}</span>
+                  <span className="text-[10px] text-[var(--color-text-muted,#8B87A3)] block">
+                    Institution &amp; Department
+                  </span>
+                  <span className="font-semibold text-[var(--color-text-heading,#1E1B2E)]">
+                    {user.college || 'UPES Dehradun'} • {user.department || 'B.Tech CSE'}
+                  </span>
                 </div>
               </div>
             </div>
-          </Card>
+          </GlassCard>
 
           {/* Assigned Event & OC Role */}
-          <Card className="space-y-4">
-            <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2">
-              Assigned Event & OC Role
+          <GlassCard className="p-6 space-y-4 rounded-3xl">
+            <h3 className="text-sm font-bold text-[var(--color-text-heading,#1E1B2E)] border-b border-[rgba(124,58,237,0.08)] pb-2">
+              Assigned Event &amp; OC Role
             </h3>
 
             <div className="space-y-3 text-xs">
-              <div className="flex items-center gap-3">
-                <Calendar className="w-4 h-4 text-purple-600 shrink-0" />
+              <div className="flex items-center gap-3 p-3 rounded-2xl neo-inset">
+                <div className="w-8 h-8 rounded-xl neo-raised flex items-center justify-center text-purple-600 shrink-0">
+                  <Calendar className="w-4 h-4" />
+                </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Assigned Event</span>
-                  <span className="font-bold text-purple-700">{user.assignedEventName || 'TechFest UPES 2026'}</span>
+                  <span className="text-[10px] text-[var(--color-text-muted,#8B87A3)] block">
+                    Assigned Event
+                  </span>
+                  <span className="font-bold text-purple-700">
+                    {user.assignedEventName || 'TechFest UPES 2026'}
+                  </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <Award className="w-4 h-4 text-purple-600 shrink-0" />
+              <div className="flex items-center gap-3 p-3 rounded-2xl neo-inset">
+                <div className="w-8 h-8 rounded-xl neo-raised flex items-center justify-center text-purple-600 shrink-0">
+                  <Award className="w-4 h-4" />
+                </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px]">OC Department & Responsibility</span>
-                  <span className="font-semibold text-slate-800">{user.ocRole || 'Stage & Technical OC Lead'}</span>
+                  <span className="text-[10px] text-[var(--color-text-muted,#8B87A3)] block">
+                    OC Department &amp; Responsibility
+                  </span>
+                  <span className="font-semibold text-[var(--color-text-heading,#1E1B2E)]">
+                    {user.ocRole || 'Stage & Technical OC Lead'}
+                  </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+              <div className="flex items-center gap-3 p-3 rounded-2xl neo-inset">
+                <div className="w-8 h-8 rounded-xl neo-raised flex items-center justify-center text-emerald-600 shrink-0">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Portal Access Status</span>
-                  <span className="font-semibold text-emerald-600">Active & Authorized</span>
+                  <span className="text-[10px] text-[var(--color-text-muted,#8B87A3)] block">
+                    Security &amp; Operations Level
+                  </span>
+                  <span className="font-semibold text-emerald-700">
+                    Level 2 Organizing Committee Access
+                  </span>
                 </div>
               </div>
             </div>
-          </Card>
+          </GlassCard>
         </div>
       </div>
     </PageContainer>

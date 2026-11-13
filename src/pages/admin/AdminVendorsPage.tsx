@@ -3,7 +3,18 @@ import { Plus, Building2, Phone, Mail, Trash2 } from 'lucide-react';
 import { Vendor, VendorCategory } from '../../types';
 import { vendorService } from '../../services/vendorService';
 import { PageContainer } from '../../components/layout';
-import { Card, Badge, Button, Input, Select, ProgressBar, Modal } from '../../components/ui';
+import {
+  GlassCard,
+  PillButton,
+  Chip,
+  Card,
+  Badge,
+  Button,
+  Input,
+  Select,
+  ProgressBar,
+  Modal,
+} from '../../components/ui';
 
 export const AdminVendorsPage: React.FC = () => {
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -56,14 +67,21 @@ export const AdminVendorsPage: React.FC = () => {
       title="Vendor Operations Directory"
       subtitle="Track suppliers, external agencies, assigned work contracts, and completion progress."
       action={
-        <Button onClick={() => setIsModalOpen(true)} icon={<Plus className="w-4 h-4" />}>
+        <PillButton
+          variant="primary"
+          onClick={() => setIsModalOpen(true)}
+          icon={<Plus className="w-4 h-4" />}
+        >
           Add Vendor Contract
-        </Button>
+        </PillButton>
       }
     >
-      <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-        <span className="text-xs font-semibold text-slate-700">Filter Category</span>
-        <div className="w-48">
+      <GlassCard className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 p-4 sm:p-5">
+        <div>
+          <h4 className="text-sm font-bold text-[#1E1B2E]">Category Filter</h4>
+          <p className="text-xs text-[#8B87A3]">Select operational department supplier</p>
+        </div>
+        <div className="w-full sm:w-56">
           <Select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
@@ -80,7 +98,7 @@ export const AdminVendorsPage: React.FC = () => {
             ]}
           />
         </div>
-      </div>
+      </GlassCard>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {filtered.map((v) => (

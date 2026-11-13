@@ -11,7 +11,14 @@ import {
 } from 'lucide-react';
 import { aiService, AIMessageResponse } from '../../services/aiService';
 import { PageContainer } from '../../components/layout';
-import { Card, Badge, Button } from '../../components/ui';
+import {
+  GlassCard,
+  PillButton,
+  Chip,
+  Card,
+  Badge,
+  Button,
+} from '../../components/ui';
 import { EventProposalCard } from '../../components/EventProposalCard';
 
 function renderFormattedText(text: string) {
@@ -141,27 +148,28 @@ export const AdminAIPage: React.FC = () => {
 
   return (
     <PageContainer
-      title="Faculty AI Operations Assistant"
+      title="EVENTRA AI • Faculty Operations Copilot"
       subtitle="Real-time campus operational intelligence, live budget auditing, task monitoring, and expert event planning guidance."
     >
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
-        {/* Suggested Prompts Sidebar */}
-        <Card className="space-y-3 lg:col-span-1 h-fit">
+        {/* Suggested Prompts Sidebar (Glass Card) */}
+        <GlassCard className="space-y-3.5 lg:col-span-1 h-fit p-4 sm:p-5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-purple-700 font-bold text-xs uppercase tracking-wider">
-              <Sparkles className="w-4 h-4" />
-              <span>Operational Intelligence</span>
+            <div className="flex items-center gap-2 text-purple-700 font-extrabold text-xs uppercase tracking-wider">
+              <Sparkles className="w-4 h-4 text-purple-600" />
+              <span>Operational AI</span>
             </div>
             <button
+              type="button"
               onClick={handleReset}
               title="Reset Chat"
-              className="p-1 rounded-lg text-slate-400 hover:text-purple-600 hover:bg-purple-50 transition-colors cursor-pointer"
+              className="p-1.5 rounded-full text-slate-400 hover:text-purple-600 hover:bg-white/80 transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <p className="text-[11px] text-slate-500 leading-relaxed">
+          <p className="text-[11px] text-[#8B87A3] leading-relaxed">
             Click any query below to audit live campus data or request structured event schedules and duty allocations:
           </p>
 
@@ -169,32 +177,33 @@ export const AdminAIPage: React.FC = () => {
             {suggestedPrompts.map((p, idx) => (
               <button
                 key={idx}
+                type="button"
                 onClick={() => handleSendPrompt(p.label)}
                 disabled={loading}
-                className="w-full text-left p-2.5 rounded-xl bg-slate-50 hover:bg-purple-50 hover:border-purple-200 border border-slate-100 text-xs text-slate-700 transition-all cursor-pointer group disabled:opacity-50"
+                className="w-full text-left p-3 rounded-2xl neo-inset hover:bg-white/80 text-xs text-[#4B4763] hover:text-[#1E1B2E] transition-all cursor-pointer group disabled:opacity-50"
               >
-                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-purple-600 mb-1">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-purple-600 mb-1">
                   {p.icon}
                   <span>{p.category}</span>
                 </div>
                 <span className="block leading-snug group-hover:text-purple-950 font-medium">
-                  "{p.label}"
+                  &quot;{p.label}&quot;
                 </span>
               </button>
             ))}
           </div>
-        </Card>
+        </GlassCard>
 
-        {/* AI Chat Window */}
-        <div className="lg:col-span-3 flex flex-col bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden h-[680px]">
+        {/* AI Chat Window (Glass Panel) */}
+        <div className="lg:col-span-3 flex flex-col glass-panel rounded-[28px] border border-white/80 shadow-[0_16px_40px_rgba(124,58,237,0.12)] overflow-hidden h-[680px]">
           {/* Header */}
-          <div className="p-4 border-b border-purple-100 bg-gradient-to-r from-purple-50 via-slate-50 to-indigo-50 flex items-center justify-between">
+          <div className="p-4 border-b border-purple-500/10 bg-white/60 backdrop-blur-md flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-purple-700 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+              <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-pink-500 text-white flex items-center justify-center font-bold text-xs shadow-sm">
                 <Sparkles className="w-4 h-4 text-amber-300" />
               </div>
               <div>
-                <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <h3 className="text-xs font-bold text-[#1E1B2E] flex items-center gap-1.5">
                   <span>EVENTRA Faculty Operations AI</span>
                   <Badge variant="purple">Live Operations</Badge>
                 </h3>
@@ -280,23 +289,26 @@ export const AdminAIPage: React.FC = () => {
               e.preventDefault();
               handleSendPrompt();
             }}
-            className="p-3 bg-white border-t border-slate-200 flex items-center gap-2"
+            className="p-3.5 bg-white/60 backdrop-blur-md border-t border-purple-500/10 flex items-center gap-2"
           >
-            <input
-              type="text"
-              value={inputPrompt}
-              onChange={(e) => setInputPrompt(e.target.value)}
-              placeholder="e.g. Plan a 2-day Robotics Bootcamp next month at MAC Auditorium for 200 students with ₹45,000 budget..."
-              disabled={loading}
-              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-purple-600 focus:bg-white transition-all disabled:opacity-50"
-            />
-            <Button
-              type="submit"
-              disabled={loading || !inputPrompt.trim()}
-              icon={<Send className="w-3.5 h-3.5" />}
-            >
-              Send
-            </Button>
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={inputPrompt}
+                onChange={(e) => setInputPrompt(e.target.value)}
+                placeholder="e.g. Plan a 2-day Robotics Bootcamp next month at MAC Auditorium for 200 students with ₹45,000 budget..."
+                disabled={loading}
+                className="w-full h-11 pl-4 pr-12 neo-inset text-xs sm:text-sm text-[#1E1B2E] placeholder:text-[#8B87A3] focus:outline-none focus:ring-2 focus:ring-purple-500/35 transition-all rounded-full disabled:opacity-50"
+              />
+              <button
+                type="submit"
+                disabled={loading || !inputPrompt.trim()}
+                aria-label="Send prompt"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full btn-primary flex items-center justify-center hover:scale-105 active:scale-95 disabled:opacity-40 transition-all cursor-pointer shadow-xs"
+              >
+                <Send className="w-3.5 h-3.5 text-white" />
+              </button>
+            </div>
           </form>
         </div>
       </div>

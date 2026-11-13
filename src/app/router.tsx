@@ -60,12 +60,38 @@ const ProtectedRoute: React.FC<{
   return children;
 };
 
+// Root Redirection based on live session role
+const RootRedirect: React.FC<{ user: User | null; loading: boolean }> = ({ user, loading }) => {
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f7f6fc]">
+        <div className="w-8 h-8 rounded-full border-2 border-purple-500 border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  // If no user is logged in, show the Google-style Portal Selector on /login
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const role = (user.role || '').toUpperCase();
+  if (role === 'ADMIN') return <Navigate to="/admin/dashboard" replace />;
+  if (role === 'TEAM') return <Navigate to="/vendor/dashboard" replace />;
+  return <Navigate to="/user/home" replace />;
+};
+
 export const AppRouter: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState<boolean>(false);
 
   const loadUser = async () => {
-    const u = await authService.getCurrentUser();
-    setCurrentUser(u);
+    try {
+      const u = await authService.getCurrentUser();
+      setCurrentUser(u);
+    } finally {
+      setIsAuthReady(true);
+    }
   };
 
   useEffect(() => {
@@ -131,9 +157,9 @@ export const AppRouter: React.FC = () => {
           <Route path="/user/profile" element={<UserProfilePage />} />
         </Route>
 
-        {/* Default Safe Fallback: Directs to Student Discovery Portal */}
-        <Route path="/" element={<Navigate to="/user/home" replace />} />
-        <Route path="*" element={<Navigate to="/user/home" replace />} />
+        {/* Intelligent Entry Gateway: Routes authenticated users to their portal, or guests to login */}
+        <Route path="/" element={<RootRedirect user={currentUser} loading={!isAuthReady} />} />
+        <Route path="*" element={<RootRedirect user={currentUser} loading={!isAuthReady} />} />
       </Routes>
     </BrowserRouter>
   );

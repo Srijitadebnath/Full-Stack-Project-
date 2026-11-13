@@ -196,56 +196,55 @@ export const AdminChatPage: React.FC = () => {
   return (
     <PageContainer
       title="Campus Operations Messenger"
-      subtitle="Real-time two-way WhatsApp channel between Faculty Administration and Organizing Committee Leads."
     >
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 h-[720px] bg-white rounded-3xl border border-slate-200/90 shadow-xl overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 h-[720px] glass-panel rounded-[28px] border border-white/80 shadow-[0_16px_40px_rgba(124,58,237,0.12)] overflow-hidden">
         
         {/* ======================================================== */}
-        {/* LEFT PANEL: WhatsApp Channels & Search (col-span-4)     */}
+        {/* LEFT PANEL: Glass Sidebar Channels & Search (col-span-4)*/}
         {/* ======================================================== */}
-        <div className="lg:col-span-4 border-r border-slate-200 flex flex-col bg-slate-50/40">
+        <div className="lg:col-span-4 border-r border-purple-500/10 flex flex-col bg-white/40">
           
           {/* Header */}
-          <div className="p-4 border-b border-slate-200 bg-white flex items-center justify-between">
+          <div className="p-4 border-b border-purple-500/10 bg-white/50 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-purple-600/30">
+              <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-pink-500 flex items-center justify-center text-white shadow-md shadow-purple-600/25">
                 <Users className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                <h3 className="text-xs font-bold text-[#1E1B2E] uppercase tracking-wider">
                   Campus Channels
                 </h3>
-                <p className="text-[11px] text-slate-500 font-medium">
+                <p className="text-[11px] text-[#8B87A3] font-medium">
                   {currentUser?.role?.toUpperCase() === 'ADMIN' ? 'Faculty Admin Desk' : 'OC Department Console'}
                 </p>
               </div>
             </div>
 
-            <Badge variant="purple" size="sm">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-500/10 text-purple-700">
               {conversations.length} Active
-            </Badge>
+            </span>
           </div>
 
-          {/* WhatsApp Search Bar */}
-          <div className="p-3 bg-white border-b border-slate-100">
+          {/* Neumorphic Inset Search Bar */}
+          <div className="p-3 bg-white/30 border-b border-purple-500/10">
             <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-[#8B87A3] absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search channels or contacts..."
-                className="w-full pl-9 pr-3 py-2 bg-slate-100/80 border border-slate-200 rounded-xl text-xs text-slate-900 outline-none focus:bg-white focus:border-purple-500 transition-all placeholder:text-slate-400"
+                className="w-full h-10 pl-10 pr-3 neo-inset text-xs text-[#1E1B2E] placeholder:text-[#8B87A3] focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all rounded-full"
               />
             </div>
           </div>
 
           {/* Channel List */}
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+          <div className="flex-1 overflow-y-auto divide-y divide-purple-500/8 custom-scrollbar">
             {filteredConversations.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-400 space-y-2">
-                <MessageSquare className="w-8 h-8 text-slate-300 mx-auto" />
-                <p>No active channels found matching "{searchQuery}".</p>
+              <div className="p-8 text-center text-xs text-[#8B87A3] space-y-2">
+                <MessageSquare className="w-8 h-8 text-purple-300 mx-auto" />
+                <p>No active channels found matching &quot;{searchQuery}&quot;.</p>
               </div>
             ) : (
               filteredConversations.map((conv) => {
@@ -259,8 +258,8 @@ export const AdminChatPage: React.FC = () => {
                     onClick={() => setActiveConvId(conv.id)}
                     className={`p-3.5 sm:p-4 flex items-start gap-3 cursor-pointer transition-all ${
                       isActive
-                        ? 'bg-purple-50/90 border-l-4 border-purple-600 shadow-xs'
-                        : 'hover:bg-slate-100/70 border-l-4 border-transparent'
+                        ? 'bg-white/95 neo-raised border-l-4 border-purple-600 shadow-xs'
+                        : 'hover:bg-white/60 border-l-4 border-transparent'
                     }`}
                   >
                     <div className="relative shrink-0">
@@ -280,27 +279,27 @@ export const AdminChatPage: React.FC = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
                         <div className="flex items-center gap-1.5 min-w-0">
-                          <h4 className={`text-xs font-bold truncate ${isActive ? 'text-purple-950' : 'text-slate-900'}`}>
+                          <h4 className={`text-xs font-bold truncate ${isActive ? 'text-purple-950 font-extrabold' : 'text-[#1E1B2E]'}`}>
                             {conv.participantName}
                           </h4>
                         </div>
-                        <span className="text-[10px] text-slate-400 font-mono shrink-0 ml-1">
+                        <span className="text-[10px] text-[#8B87A3] font-mono shrink-0 ml-1">
                           {conv.lastMessageTimestamp}
                         </span>
                       </div>
 
                       <div className="flex items-center gap-1 mt-0.5">
                         {isHub && (
-                          <span className="text-[9px] font-semibold text-purple-700 bg-purple-100/80 px-1.5 py-0.2 rounded shrink-0">
+                          <span className="text-[9px] font-bold text-purple-700 bg-purple-500/10 px-1.5 py-0.5 rounded-full shrink-0">
                             Central Hub
                           </span>
                         )}
                         {isDean && (
-                          <span className="text-[9px] font-semibold text-indigo-700 bg-indigo-100/80 px-1.5 py-0.2 rounded shrink-0">
+                          <span className="text-[9px] font-bold text-indigo-700 bg-indigo-500/10 px-1.5 py-0.5 rounded-full shrink-0">
                             Dean Desk
                           </span>
                         )}
-                        <p className="text-xs text-slate-500 truncate font-normal">
+                        <p className="text-xs text-[#8B87A3] truncate font-normal">
                           {conv.lastMessage || 'No messages yet.'}
                         </p>
                       </div>
@@ -319,14 +318,14 @@ export const AdminChatPage: React.FC = () => {
         </div>
 
         {/* ======================================================== */}
-        {/* RIGHT PANEL: WhatsApp Active Chat Window (col-span-8)   */}
+        {/* RIGHT PANEL: Glass Message Area (col-span-8)             */}
         {/* ======================================================== */}
-        <div className="lg:col-span-8 flex flex-col bg-[#efeae2]/30 relative">
+        <div className="lg:col-span-8 flex flex-col bg-white/20 relative">
           
           {activeConv ? (
             <>
               {/* Active Conversation Top Bar */}
-              <div className="p-3.5 sm:p-4 border-b border-slate-200 bg-white flex items-center justify-between shadow-xs z-10">
+              <div className="p-3.5 sm:p-4 border-b border-purple-500/10 bg-white/60 backdrop-blur-md flex items-center justify-between shadow-xs z-10">
                 <div className="flex items-center gap-3">
                   {activeConv.id === 'conv-hub' ? (
                     <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-600 flex items-center justify-center text-white shadow-xs">
@@ -341,10 +340,10 @@ export const AdminChatPage: React.FC = () => {
                   )}
 
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900 leading-snug">
+                    <h3 className="text-sm font-bold text-[#1E1B2E] leading-snug">
                       {activeConv.participantName}
                     </h3>
-                    <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1.5">
+                    <p className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
                       {activeConv.id === 'conv-hub'
                         ? 'All OC Committee Leads & Faculty Live'
@@ -354,33 +353,32 @@ export const AdminChatPage: React.FC = () => {
                 </div>
 
                 {/* Logged In User Pill */}
-                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-xs">
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full neo-raised border border-white/80 text-purple-900 text-xs">
                   <span className="w-2 h-2 rounded-full bg-purple-600" />
-                  <span className="font-semibold truncate max-w-[200px]">
+                  <span className="font-bold truncate max-w-[200px]">
                     {profile.displayName}
                   </span>
                 </div>
               </div>
 
-              {/* Messages Stream (WhatsApp Wallpaper Background) */}
-              <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-3.5">
+              {/* Messages Stream */}
+              <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-3.5 custom-scrollbar">
                 
                 {/* Security Advisory Badge */}
                 <div className="flex justify-center mb-2">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-800 text-[11px] font-medium shadow-xs">
-                    <Shield className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-800 text-[11px] font-semibold shadow-xs">
+                    <Shield className="w-3.5 h-3.5 text-purple-600 shrink-0" />
                     <span>Official UPES operations log • Communications stored for fest reporting.</span>
                   </div>
                 </div>
 
                 {messages.length === 0 ? (
-                  <div className="py-16 text-center text-xs text-slate-400 space-y-2">
-                    <MessageSquare className="w-8 h-8 text-slate-300 mx-auto" />
+                  <div className="py-16 text-center text-xs text-[#8B87A3] space-y-2">
+                    <MessageSquare className="w-8 h-8 text-purple-300 mx-auto" />
                     <p>Start a conversation with {activeConv.participantName}.</p>
                   </div>
                 ) : (
                   messages.map((msg) => {
-                    // Strict identity check: is this message from the logged in user?
                     const isMe = isMessageFromMe(msg);
 
                     return (
@@ -389,15 +387,15 @@ export const AdminChatPage: React.FC = () => {
                         className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
                       >
                         <div
-                          className={`max-w-[85%] sm:max-w-md p-3.5 rounded-2xl text-xs sm:text-sm space-y-1.5 shadow-sm ${
+                          className={`max-w-[85%] sm:max-w-md p-4 text-xs sm:text-sm space-y-1.5 shadow-xs transition-all ${
                             isMe
-                              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-br-xs'
-                              : 'bg-white text-slate-800 border border-slate-200/90 rounded-bl-xs'
+                              ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 text-white rounded-[22px] rounded-tr-sm shadow-purple-600/20'
+                              : 'glass-card bg-white/95 text-[#1E1B2E] border border-white/90 rounded-[22px] rounded-tl-sm'
                           }`}
                         >
                           {/* Sender Label and Timestamp */}
                           <div className={`flex justify-between items-center text-[10px] gap-3 ${
-                            isMe ? 'text-purple-200 font-semibold' : 'text-slate-500'
+                            isMe ? 'text-purple-200 font-semibold' : 'text-[#8B87A3]'
                           }`}>
                             <span className={`font-bold ${isMe ? 'text-white' : 'text-purple-700'}`}>
                               {isMe ? 'You' : msg.senderName}
@@ -426,34 +424,34 @@ export const AdminChatPage: React.FC = () => {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* WhatsApp Message Input Bar */}
+              {/* Message Input Bar (Neumorphic Inset with Round Gradient Send Button) */}
               <form
                 onSubmit={handleSendMessage}
-                className="p-3 sm:p-4 bg-white border-t border-slate-200 flex items-center gap-2.5 z-10"
+                className="p-3 sm:p-4 bg-white/60 backdrop-blur-md border-t border-purple-500/10 flex items-center gap-2.5 z-10"
               >
-                <input
-                  type="text"
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  placeholder={`Type a message to ${activeConv.participantName}... (Press Enter to send)`}
-                  className="flex-1 bg-slate-100/70 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs sm:text-sm outline-none focus:border-purple-500 focus:bg-white transition-all text-slate-900 placeholder:text-slate-400"
-                />
-
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={!inputMessage.trim() || isSending}
-                  icon={<Send className="w-3.5 h-3.5" />}
-                  className="rounded-xl px-4 py-2.5"
-                >
-                  Send
-                </Button>
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    placeholder={`Type a message to ${activeConv.participantName}... (Press Enter to send)`}
+                    className="w-full h-11 pl-4 pr-12 neo-inset text-xs sm:text-sm text-[#1E1B2E] placeholder:text-[#8B87A3] focus:outline-none focus:ring-2 focus:ring-purple-500/35 transition-all rounded-full"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!inputMessage.trim() || isSending}
+                    aria-label="Send message"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full btn-primary flex items-center justify-center hover:scale-105 active:scale-95 disabled:opacity-40 transition-all cursor-pointer shadow-xs"
+                  >
+                    <Send className="w-3.5 h-3.5 text-white" />
+                  </button>
+                </div>
               </form>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-400 space-y-2">
-              <MessageSquare className="w-10 h-10 text-slate-300" />
-              <h4 className="text-sm font-semibold text-slate-700">No Channel Selected</h4>
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-[#8B87A3] space-y-2">
+              <MessageSquare className="w-10 h-10 text-purple-300" />
+              <h4 className="text-sm font-bold text-[#1E1B2E]">No Channel Selected</h4>
               <p className="text-xs">Pick a channel from the left sidebar to start communicating.</p>
             </div>
           )}

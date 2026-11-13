@@ -1,12 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { CheckCircle2, ArrowLeft, Ticket, Calendar, MapPin, AlertCircle, Sparkles, QrCode } from 'lucide-react';
+import {
+  CheckCircle2,
+  ArrowLeft,
+  Ticket,
+  Calendar,
+  MapPin,
+  AlertCircle,
+  Sparkles,
+  QrCode,
+  User as UserIcon,
+  Mail,
+  Phone,
+  Building2,
+  BookOpen,
+} from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Event, User } from '../../types';
 import { eventService } from '../../services/eventService';
 import { registrationService } from '../../services/registrationService';
 import { authService } from '../../services/authService';
-import { Card, Button, Input, Select, Badge, Alert } from '../../components/ui';
+import { GlassCard, PillButton, GlassInput, Chip } from '../../components/ui';
 import { formatDate } from '../../utils/formatters';
 
 export const UserRegisterPage: React.FC = () => {
@@ -64,7 +78,9 @@ export const UserRegisterPage: React.FC = () => {
             try {
               const myRegs = await registrationService.getRegistrations(loadedUser.email);
               const existingTicket = myRegs.find(
-                (r) => r.eventId === eventId && r.userEmail.toLowerCase() === loadedUser.email.toLowerCase()
+                (r) =>
+                  r.eventId === eventId &&
+                  r.userEmail.toLowerCase() === loadedUser.email.toLowerCase()
               );
               if (existingTicket) {
                 setSubmittedTicket({
@@ -127,216 +143,246 @@ export const UserRegisterPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#faf9fc] p-4 sm:p-8">
-      <div className="max-w-xl mx-auto space-y-6">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate('/user/home')}
-          icon={<ArrowLeft className="w-4 h-4" />}
-        >
-          Back to Events Hub
-        </Button>
+    <div className="max-w-2xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <PillButton
+        variant="glass"
+        size="sm"
+        onClick={() => navigate('/user/home')}
+        className="flex items-center gap-1.5"
+      >
+        <ArrowLeft className="w-3.5 h-3.5" />
+        <span>Back to Events Hub</span>
+      </PillButton>
 
-        {errorMessage && (
-          <Alert type="error" message={errorMessage} onClose={() => setErrorMessage(null)} />
-        )}
+      {errorMessage && (
+        <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-2xl flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
 
-        {submittedTicket ? (
-          /* Live Digital Ticket State Card */
-          <Card className="text-center space-y-5 p-8 border-2 border-emerald-100 bg-white rounded-3xl shadow-xl">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
-              <CheckCircle2 className="w-8 h-8" />
+      {submittedTicket ? (
+        /* Live Digital Ticket State Card */
+        <GlassCard className="text-center space-y-6 p-6 sm:p-8 border border-white/80 rounded-3xl">
+          <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center mx-auto neo-raised">
+            <CheckCircle2 className="w-8 h-8" />
+          </div>
+
+          <div>
+            <Chip variant="success" size="sm">
+              Pass Confirmed in Database
+            </Chip>
+            <h2 className="text-2xl font-extrabold text-[var(--color-text-heading,#1E1B2E)] mt-2">
+              Event Pass Ready!
+            </h2>
+            <p className="text-xs text-[var(--color-text-muted,#8B87A3)] mt-1">
+              Your registration for <strong>{submittedTicket.eventName}</strong> has been secured.
+            </p>
+          </div>
+
+          {/* Visual Digital Hologram Ticket */}
+          <GlassCard dark className="p-6 text-white text-left space-y-4 rounded-3xl relative overflow-hidden">
+            <div className="flex justify-between items-start border-b border-white/10 pb-3">
+              <div>
+                <span className="text-[10px] text-purple-300 uppercase font-extrabold tracking-wider block">
+                  Official Campus Pass
+                </span>
+                <h4 className="text-lg font-extrabold mt-0.5">{submittedTicket.eventName}</h4>
+              </div>
+              <Chip variant="success" size="sm">
+                CONFIRMED
+              </Chip>
             </div>
 
-            <div>
-              <span className="text-[10px] uppercase font-bold text-emerald-600 tracking-wider bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-                Seat Confirmed in Cloud Database
-              </span>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-2">
-                Event Pass Generated!
-              </h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Your spot for <strong>{submittedTicket.eventName}</strong> is officially booked.
-              </p>
+            <div className="grid grid-cols-2 gap-4 text-xs pt-1">
+              <div>
+                <span className="text-[10px] text-purple-300 block">Attendee</span>
+                <span className="font-bold">{submittedTicket.userName}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-purple-300 block">SAP ID</span>
+                <span className="font-mono font-bold">{submittedTicket.studentId}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-purple-300 block">Email Handle</span>
+                <span className="font-mono text-[11px] truncate block opacity-90">
+                  {submittedTicket.userEmail}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-purple-300 block">Ticket ID</span>
+                <span className="font-mono font-bold">#{submittedTicket.id.slice(0, 8)}</span>
+              </div>
             </div>
 
-            {/* Visual Digital Pass */}
-            <div className="p-5 bg-gradient-to-br from-purple-700 to-indigo-900 text-white rounded-2xl text-left space-y-3 shadow-md">
-              <div className="flex justify-between items-start border-b border-white/20 pb-2">
-                <div>
-                  <span className="text-[10px] text-purple-200 uppercase font-bold block">Fest Pass</span>
-                  <h4 className="text-base font-extrabold">{submittedTicket.eventName}</h4>
-                </div>
-                <Badge variant="emerald" size="sm">
-                  CONFIRMED
-                </Badge>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-                <div>
-                  <span className="text-[10px] text-purple-200 block">Attendee</span>
-                  <span className="font-bold">{submittedTicket.userName}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-purple-200 block">Student SAP ID</span>
-                  <span className="font-mono font-bold">{submittedTicket.studentId}</span>
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-white/20 flex items-center justify-between text-[11px] font-mono text-purple-200">
-                <span>Pass ID:</span>
-                <span className="text-white font-bold">{submittedTicket.id}</span>
-              </div>
-
-              {/* 100% Offline Client-Side QR Pass Badge */}
-              <div className="pt-3 border-t border-white/20 flex flex-col items-center justify-center p-3 bg-white rounded-xl text-slate-900 shadow-inner space-y-2">
+            {/* Live QR Code Box */}
+            <div className="pt-3 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="p-2.5 bg-white rounded-2xl shadow-sm">
                 <QRCodeSVG
                   value={JSON.stringify({
                     ticketId: submittedTicket.id,
-                    studentId: submittedTicket.studentId,
-                    studentName: submittedTicket.userName,
-                    eventName: submittedTicket.eventName,
-                    issuedBy: 'UPES Campus Operations'
+                    event: submittedTicket.eventName,
+                    email: submittedTicket.userEmail,
                   })}
-                  size={140}
-                  level="H"
-                  includeMargin={true}
+                  size={100}
+                  level="M"
                 />
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                  <QrCode className="w-3 h-3 text-purple-600" />
-                  Scan at Venue Gate Entrance
-                </span>
+              </div>
+              <div className="text-right text-[11px] text-purple-200">
+                <p className="font-semibold">Scan at Venue Entry</p>
+                <p className="text-[10px] opacity-75">UPES Fest Operations Gates</p>
               </div>
             </div>
+          </GlassCard>
 
-            <div className="flex justify-center gap-3 pt-2">
-              <Button onClick={() => navigate('/user/home')} className="rounded-xl px-6 font-bold">
-                View in My Applied Events →
-              </Button>
+          <div className="flex flex-col sm:flex-row justify-center gap-3">
+            <PillButton variant="glass" size="sm" onClick={() => navigate('/user/my-events')}>
+              View My Passes
+            </PillButton>
+            <PillButton variant="primary" size="sm" onClick={() => navigate('/user/home')}>
+              Discover More Fests
+            </PillButton>
+          </div>
+        </GlassCard>
+      ) : (
+        /* Registration Form */
+        <GlassCard className="p-6 sm:p-8 rounded-3xl space-y-6">
+          <div className="space-y-1">
+            <Chip variant="purple" size="sm">
+              Event Registration
+            </Chip>
+            <h2 className="text-xl sm:text-2xl font-extrabold text-[var(--color-text-heading,#1E1B2E)] tracking-tight">
+              Register for {event ? event.name : 'Campus Event'}
+            </h2>
+            <p className="text-xs text-[var(--color-text-muted,#8B87A3)]">
+              Complete your institutional attendee details below. Your pass will be generated instantly.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-[var(--color-text-heading,#1E1B2E)] block">
+                Full Name
+              </label>
+              <GlassInput
+                value={formData.userName}
+                onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
+                placeholder="Student Name"
+                icon={<UserIcon className="w-4 h-4 text-purple-600" />}
+                required
+              />
             </div>
-          </Card>
-        ) : (
-          /* Live Registration Form Card */
-          <Card className="space-y-5 p-6 sm:p-8 bg-white border border-purple-100 rounded-3xl shadow-xl">
-            {event && (
-              <div className="p-4 bg-purple-50/70 border border-purple-100 rounded-2xl space-y-1">
-                <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider block">
-                  {event.category}
-                </span>
-                <h3 className="text-base font-extrabold text-slate-900">{event.name}</h3>
-                <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 pt-1">
-                  <span className="flex items-center gap-1 font-medium">
-                    <Calendar className="w-3.5 h-3.5 text-purple-600" />
-                    {formatDate(event.date)}
-                  </span>
-                  <span className="flex items-center gap-1 font-medium">
-                    <MapPin className="w-3.5 h-3.5 text-purple-600" />
-                    {event.venue}
-                  </span>
-                </div>
-              </div>
-            )}
 
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Official Student Registration</h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Registering books your seat live in PostgreSQL with atomic capacity protection.
-              </p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-3.5 pt-2 border-t border-slate-100">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 block">Full Name</label>
-                <Input
+                <label className="text-xs font-bold text-[var(--color-text-heading,#1E1B2E)] block">
+                  UPES Student Email
+                </label>
+                <GlassInput
+                  type="email"
+                  value={formData.userEmail}
+                  onChange={(e) => setFormData({ ...formData, userEmail: e.target.value })}
+                  placeholder="firstname.sapid@stu.upes.ac.in"
+                  icon={<Mail className="w-4 h-4 text-purple-600" />}
                   required
-                  value={formData.userName}
-                  onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
-                  placeholder="e.g. Srijita Debnath"
                 />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 block">Institutional Email</label>
-                  <Input
-                    type="email"
-                    required
-                    value={formData.userEmail}
-                    onChange={(e) => setFormData({ ...formData, userEmail: e.target.value })}
-                    placeholder="name.id@stu.upes.ac.in"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 block">Contact Phone</label>
-                  <Input
-                    type="tel"
-                    required
-                    value={formData.userPhone}
-                    onChange={(e) => setFormData({ ...formData, userPhone: e.target.value })}
-                    placeholder="+91 98765 43210"
-                  />
-                </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 block">College / University</label>
-                <Input
+                <label className="text-xs font-bold text-[var(--color-text-heading,#1E1B2E)] block">
+                  Contact Phone
+                </label>
+                <GlassInput
+                  type="tel"
+                  value={formData.userPhone}
+                  onChange={(e) => setFormData({ ...formData, userPhone: e.target.value })}
+                  placeholder="+91 98765 43210"
+                  icon={<Phone className="w-4 h-4 text-purple-600" />}
                   required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-[var(--color-text-heading,#1E1B2E)] block">
+                  College / School
+                </label>
+                <GlassInput
                   value={formData.college}
                   onChange={(e) => setFormData({ ...formData, college: e.target.value })}
+                  placeholder="UPES Dehradun"
+                  icon={<Building2 className="w-4 h-4 text-purple-600" />}
+                  required
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 block">Branch / Course</label>
-                  <Input
-                    required
-                    value={formData.course}
-                    onChange={(e) => setFormData({ ...formData, course: e.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 block">Academic Year</label>
-                  <Select
-                    value={formData.year}
-                    onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                    options={[
-                      { value: '1st Year', label: '1st Year' },
-                      { value: '2nd Year', label: '2nd Year' },
-                      { value: '3rd Year', label: '3rd Year' },
-                      { value: '4th Year', label: '4th Year' },
-                    ]}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 block">SAP ID / Roll No</label>
-                  <Input
-                    required
-                    value={formData.studentId}
-                    onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
-                    placeholder="SAP-50001234"
-                  />
-                </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-[var(--color-text-heading,#1E1B2E)] block">
+                  Course &amp; Specialization
+                </label>
+                <GlassInput
+                  value={formData.course}
+                  onChange={(e) => setFormData({ ...formData, course: e.target.value })}
+                  placeholder="B.Tech Computer Science"
+                  icon={<BookOpen className="w-4 h-4 text-purple-600" />}
+                  required
+                />
               </div>
+            </div>
 
-              <div className="pt-3">
-                <Button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-600/20"
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-[var(--color-text-heading,#1E1B2E)] block">
+                  Academic Year
+                </label>
+                <select
+                  value={formData.year}
+                  onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+                  className="w-full neo-inset rounded-2xl px-4 py-2.5 text-xs text-[var(--color-text-heading,#1E1B2E)] bg-transparent focus:outline-none focus:ring-2 focus:ring-purple-400"
                 >
-                  {submitting ? 'Confirming Seat with PostgreSQL...' : 'Confirm Live Event Registration →'}
-                </Button>
+                  <option value="1st Year">1st Year</option>
+                  <option value="2nd Year">2nd Year</option>
+                  <option value="3rd Year">3rd Year</option>
+                  <option value="4th Year">4th Year</option>
+                  <option value="Postgraduate">Postgraduate</option>
+                </select>
               </div>
-            </form>
-          </Card>
-        )}
-      </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-[var(--color-text-heading,#1E1B2E)] block">
+                  SAP / Student ID
+                </label>
+                <GlassInput
+                  value={formData.studentId}
+                  onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
+                  placeholder="SAP-50001234"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-[rgba(124,58,237,0.08)] flex justify-end gap-3">
+              <PillButton
+                type="button"
+                variant="glass"
+                size="sm"
+                onClick={() => navigate('/user/home')}
+              >
+                Cancel
+              </PillButton>
+              <PillButton
+                type="submit"
+                variant="primary"
+                size="md"
+                loading={submitting}
+              >
+                Confirm &amp; Generate Ticket →
+              </PillButton>
+            </div>
+          </form>
+        </GlassCard>
+      )}
     </div>
   );
 };

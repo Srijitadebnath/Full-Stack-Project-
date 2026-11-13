@@ -4,7 +4,7 @@ import { Briefcase, AlertTriangle, CheckCircle, Upload } from 'lucide-react';
 import { Task } from '../../types';
 import { taskService } from '../../services/taskService';
 import { PageContainer } from '../../components/layout';
-import { Card, Badge, Button, ProgressBar } from '../../components/ui';
+import { GlassCard, Chip, PillButton } from '../../components/ui';
 
 export const VendorTasksPage: React.FC = () => {
   const navigate = useNavigate();
@@ -27,36 +27,59 @@ export const VendorTasksPage: React.FC = () => {
     >
       <div className="space-y-4">
         {tasks.map((tsk) => (
-          <Card key={tsk.id} className="space-y-3">
+          <GlassCard key={tsk.id} lift className="space-y-4 p-5 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <h4 className="text-base font-semibold text-slate-900">{tsk.name}</h4>
-                <p className="text-xs text-slate-500 mt-0.5">{tsk.description}</p>
-                <span className="text-[11px] text-purple-600 font-medium block mt-1">Event: {tsk.eventName} • Deadline: {tsk.deadline}</span>
+                <h4 className="text-base font-bold text-[#1E1B2E]">{tsk.name}</h4>
+                <p className="text-xs text-[#4B4763] mt-0.5">{tsk.description}</p>
+                <span className="text-[11px] text-purple-700 font-semibold block mt-1">
+                  Event: {tsk.eventName} • Deadline: {tsk.deadline}
+                </span>
               </div>
-              <Badge variant={tsk.status === 'Completed' ? 'emerald' : 'purple'}>{tsk.status}</Badge>
+              <Chip variant={tsk.status === 'Completed' ? 'success' : 'purple'}>
+                {tsk.status}
+              </Chip>
             </div>
 
-            <ProgressBar progress={tsk.progress} color="purple" showLabel />
+            {/* Gradient Progress Bar */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <span className="text-[#8B87A3]">Milestone Progress</span>
+                <span className="text-purple-700">{tsk.progress}%</span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-slate-200/60 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{
+                    width: `${tsk.progress}%`,
+                    background:
+                      tsk.progress === 100
+                        ? 'linear-gradient(90deg, #16A34A, #10B981)'
+                        : 'linear-gradient(90deg, #7C3AED, #A855F7 60%, #FB923C)',
+                  }}
+                />
+              </div>
+            </div>
 
             {/* Actions Bar */}
-            <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-slate-100">
-              <Button
-                variant="outline"
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-purple-500/10">
+              <PillButton
+                variant="glass"
                 size="sm"
                 onClick={() => handleUpdateProgress(tsk.id, Math.min(100, tsk.progress + 25))}
               >
                 +25% Progress
-              </Button>
-              <Button
+              </PillButton>
+              <PillButton
+                variant="primary"
                 size="sm"
                 onClick={() => navigate('/vendor/submissions')}
                 icon={<Upload className="w-3.5 h-3.5" />}
               >
                 Submit Update
-              </Button>
+              </PillButton>
             </div>
-          </Card>
+          </GlassCard>
         ))}
       </div>
     </PageContainer>

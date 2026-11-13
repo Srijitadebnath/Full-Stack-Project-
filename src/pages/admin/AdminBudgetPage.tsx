@@ -4,7 +4,26 @@ import { EventBudget, Expense, BudgetCategory, Event } from '../../types';
 import { budgetService } from '../../services/budgetService';
 import { eventService } from '../../services/eventService';
 import { PageContainer } from '../../components/layout';
-import { Card, Badge, Button, Input, Select, ProgressBar, Modal, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui';
+import {
+  GlassCard,
+  StatCard,
+  PillButton,
+  Chip,
+  GlassTable,
+  Card,
+  Badge,
+  Button,
+  Input,
+  Select,
+  ProgressBar,
+  Modal,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '../../components/ui';
 import { formatCurrency, formatDate, formatPercentage } from '../../utils/formatters';
 
 export const AdminBudgetPage: React.FC = () => {
@@ -91,24 +110,25 @@ export const AdminBudgetPage: React.FC = () => {
       title="Event Budget & Expense Operations"
       subtitle="Track financial allocations, categories, logged vendor expenses, and remaining funds per event."
       action={
-        <Button 
-          onClick={() => setIsModalOpen(true)} 
+        <PillButton
+          variant="primary"
+          onClick={() => setIsModalOpen(true)}
           icon={<Plus className="w-4 h-4" />}
           disabled={!selectedEventId}
         >
           Log New Expense
-        </Button>
+        </PillButton>
       }
     >
-      {/* 🎯 Event Selector Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* 🎯 Event Selector Bar (Glass Card) */}
+      <GlassCard className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 shrink-0">
-            <Calendar className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-2xl neo-raised flex items-center justify-center text-purple-600 shrink-0 border border-white/60">
+            <Calendar className="w-4 h-4" />
           </div>
           <div>
-            <span className="text-[11px] font-semibold text-purple-600 uppercase tracking-wider block">Selected Campus Event</span>
-            <h4 className="text-sm sm:text-base font-bold text-slate-900">
+            <span className="text-[10px] font-extrabold text-purple-600 uppercase tracking-widest block">Selected Campus Event</span>
+            <h4 className="text-sm sm:text-base font-bold text-[#1E1B2E]">
               {selectedEvent ? selectedEvent.name : 'Select an Event to View Budget'}
             </h4>
           </div>
@@ -124,50 +144,67 @@ export const AdminBudgetPage: React.FC = () => {
             }))}
           />
         </div>
-      </div>
+      </GlassCard>
 
       {events.length === 0 && !isLoading && (
-        <Card className="p-8 text-center text-slate-500 space-y-2">
+        <GlassCard className="p-8 text-center text-[#8B87A3] space-y-2">
           <AlertCircle className="w-8 h-8 text-amber-500 mx-auto" />
-          <h4 className="text-base font-semibold text-slate-800">No Events Found</h4>
-          <p className="text-xs">Create your first campus event in the Event Operations Hub to begin tracking its budget.</p>
-        </Card>
+          <h4 className="text-base font-bold text-[#1E1B2E]">No Events Found</h4>
+          <p className="text-xs text-[#8B87A3]">Create your first campus event in the Event Operations Hub to begin tracking its budget.</p>
+        </GlassCard>
       )}
 
       {selectedEventId && (
         <>
-          {/* 4 Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <Card className="p-4">
-              <span className="text-xs text-slate-400">Total Approved Budget</span>
-              <h3 className="text-xl font-bold text-slate-900 mt-1">{formatCurrency(totalBudget)}</h3>
-              <span className="text-[11px] text-slate-400 mt-0.5 block truncate">{selectedEvent?.name}</span>
-            </Card>
-            <Card className="p-4">
-              <span className="text-xs text-slate-400">Allocated to Categories</span>
-              <h3 className="text-xl font-bold text-purple-700 mt-1">{formatCurrency(budget?.allocated || totalBudget)}</h3>
-              <span className="text-[11px] text-purple-500 mt-0.5 block">Department Allocation</span>
-            </Card>
-            <Card className="p-4">
-              <span className="text-xs text-slate-400">Total Spent</span>
-              <h3 className="text-xl font-bold text-emerald-600 mt-1">{formatCurrency(spent)}</h3>
-              <span className="text-[11px] text-emerald-500 mt-0.5 block">{expenses.length} receipts verified</span>
-            </Card>
-            <Card className="p-4">
-              <span className="text-xs text-slate-400">Remaining Unspent</span>
-              <h3 className="text-xl font-bold text-sky-600 mt-1">{formatCurrency(remaining)}</h3>
-              <span className="text-[11px] text-sky-500 mt-0.5 block">Available Balance</span>
-            </Card>
+          {/* 4 Summary Stat Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              label="Total Approved Budget"
+              value={formatCurrency(totalBudget)}
+              icon={<DollarSign className="w-5 h-5 text-purple-600" />}
+              helperText={selectedEvent?.name}
+            />
+            <StatCard
+              label="Allocated to Categories"
+              value={formatCurrency(budget?.allocated || totalBudget)}
+              icon={<CreditCard className="w-5 h-5 text-indigo-600" />}
+              helperText="Department Allocation"
+            />
+            <StatCard
+              label="Total Spent"
+              value={formatCurrency(spent)}
+              icon={<Receipt className="w-5 h-5 text-emerald-600" />}
+              trend={{ value: `${expenses.length} receipts`, type: 'up' }}
+              helperText="Verified disbursements"
+            />
+            <StatCard
+              label="Remaining Unspent"
+              value={formatCurrency(remaining)}
+              icon={<DollarSign className="w-5 h-5 text-sky-600" />}
+              helperText="Available Balance"
+            />
           </div>
 
           {/* Progress Card */}
-          <Card className="space-y-2">
-            <div className="flex justify-between text-xs font-semibold">
-              <span className="text-slate-700">Budget Utilization for {selectedEvent?.name}</span>
-              <span className="text-purple-700 font-bold">{progressPct}% Spent</span>
+          <GlassCard className="p-5 space-y-2">
+            <div className="flex justify-between text-xs font-bold">
+              <span className="text-[#1E1B2E]">Budget Utilization for {selectedEvent?.name}</span>
+              <span className="text-purple-700">{progressPct}% Spent</span>
             </div>
-            <ProgressBar progress={progressPct} color={progressPct > 90 ? "rose" : "purple"} />
-          </Card>
+            {/* Pale Track with Gradient Bar */}
+            <div className="w-full h-3 rounded-full bg-slate-200/60 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{
+                  width: `${progressPct}%`,
+                  background:
+                    Number(progressPct) > 90
+                      ? 'linear-gradient(90deg, #DC2626, #F87171)'
+                      : 'linear-gradient(90deg, #FB923C, #C084FC)',
+                }}
+              />
+            </div>
+          </GlassCard>
 
           {/* Category Breakdown & Logged Expenses Table */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { UserCheck, Clock, MapPin } from 'lucide-react';
 import { PageContainer } from '../../components/layout';
-import { Card, Badge, Button } from '../../components/ui';
+import { GlassCard, Chip, PillButton } from '../../components/ui';
 
 export const VendorAttendancePage: React.FC = () => {
   const [isCheckedIn, setIsCheckedIn] = useState(false);
@@ -19,33 +19,33 @@ export const VendorAttendancePage: React.FC = () => {
   return (
     <PageContainer
       title="Event Attendance & Venue Check-In"
-      subtitle="Simulate on-site venue check-in and check-out tracking for vendor team members."
+      subtitle="On-site venue check-in and check-out tracking for Organizing Committee duty officers."
     >
-      <Card className="max-w-md mx-auto text-center space-y-4 p-6">
-        <div className="w-12 h-12 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center mx-auto">
-          <UserCheck className="w-6 h-6" />
+      <GlassCard className="max-w-md mx-auto text-center space-y-5 p-8">
+        <div className="w-16 h-16 rounded-3xl neo-raised flex items-center justify-center mx-auto text-purple-600 border border-white/80 shadow-md">
+          <UserCheck className="w-8 h-8" />
         </div>
 
         <div>
-          <h3 className="text-base font-semibold text-slate-900">TechFest UPES 2026</h3>
-          <p className="text-xs text-slate-500 mt-0.5">MAC Main Auditorium • Stage Sound Setup</p>
+          <h3 className="text-lg font-bold text-[#1E1B2E]">UPES AI Innovation Sprint &amp; Hackathon 2026</h3>
+          <p className="text-xs text-[#8B87A3] mt-1">MAC Main Auditorium • Stage Sound &amp; Networking Setup</p>
         </div>
 
-        <div className="p-3 bg-slate-50 rounded-xl text-xs space-y-1">
-          <span className="text-slate-400 block">Current Status</span>
-          <Badge variant={isCheckedIn ? 'emerald' : 'slate'} dot>
-            {isCheckedIn ? `Checked In at ${checkInTime}` : 'Checked Out / Not Checked In'}
-          </Badge>
+        <div className="p-4 neo-inset rounded-2xl text-xs space-y-2">
+          <span className="text-[#8B87A3] font-medium block">Current Operational Status</span>
+          <Chip variant={isCheckedIn ? 'success' : 'neutral'}>
+            {isCheckedIn ? `Checked In at ${checkInTime}` : 'Checked Out / Off Duty'}
+          </Chip>
         </div>
 
-        <Button
+        <PillButton
           onClick={handleToggleAttendance}
           variant={isCheckedIn ? 'danger' : 'primary'}
-          className="w-full"
+          className="w-full py-3"
         >
-          {isCheckedIn ? 'Check Out from Venue' : 'Check In to Venue'}
-        </Button>
-      </Card>
+          {isCheckedIn ? 'Check Out from Venue' : 'Check In to Venue Live'}
+        </PillButton>
+      </GlassCard>
     </PageContainer>
   );
 };

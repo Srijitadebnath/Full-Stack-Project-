@@ -1,10 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Briefcase, Clock, CheckCircle2, AlertTriangle, ArrowRight, Sparkles } from 'lucide-react';
+import { Briefcase, Clock, CheckCircle2, AlertTriangle, ArrowRight, Sparkles, Calendar } from 'lucide-react';
 import { Task } from '../../types';
 import { taskService } from '../../services/taskService';
 import { PageContainer } from '../../components/layout';
-import { Card, Badge, Button, ProgressBar } from '../../components/ui';
+import {
+  GlassCard,
+  StatCard,
+  PillButton,
+  Chip,
+} from '../../components/ui';
 
 export const VendorDashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -19,78 +24,119 @@ export const VendorDashboardPage: React.FC = () => {
 
   return (
     <PageContainer
-      title="Vendor & Team Portal"
-      subtitle="Today's work schedule, assigned tasks, and quick progress update panel."
+      title="Organizing Committee Operations Desk"
+      subtitle="Today's task schedule, work assignments, and work proof submission telemetry."
     >
-      {/* OC Operations AI Banner */}
-      <div className="relative overflow-hidden p-5 rounded-3xl bg-gradient-to-r from-purple-800 via-purple-700 to-indigo-800 text-white shadow-xl shadow-purple-950/20 border border-purple-600/50">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-44 h-44 rounded-full bg-purple-400/20 blur-2xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1.5 max-w-xl">
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[11px] font-semibold text-amber-300">
+      {/* OC Operations AI Hero Banner */}
+      <div className="relative overflow-hidden p-6 sm:p-7 rounded-[28px] bg-gradient-to-r from-purple-700/85 via-indigo-600/85 to-pink-500/85 backdrop-blur-2xl text-white border border-white/40 shadow-[0_16px_40px_rgba(124,58,237,0.18)]">
+        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-56 h-56 rounded-full bg-white/10 blur-2xl pointer-events-none" />
+        
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+          <div className="space-y-2 max-w-xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-[11px] font-bold text-amber-300">
               <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-              <span>EVENTRA OC Operations Assistant</span>
+              <span>EVENTRA AI · OC Assistant</span>
             </div>
-            <h3 className="text-base sm:text-lg font-bold tracking-tight">
+            <h3 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
               Live Duties, Team Roster &amp; Operational Conduct Guide
             </h3>
-            <p className="text-xs text-purple-200 leading-relaxed">
-              Have questions about your assigned tasks, work proof submission steps, fellow team members, or campus conduct policies? Ask your AI assistant anytime.
+            <p className="text-xs sm:text-sm text-purple-100 leading-relaxed font-normal">
+              Have questions about your assigned tasks, work proof submission steps, fellow team members, or campus conduct policies? Ask EVENTRA AI anytime.
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-shrink-0">
-            <button
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0">
+            <PillButton
+              variant="glass"
               onClick={() => navigate('/vendor/ai')}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white text-purple-900 font-bold text-xs hover:bg-purple-50 transition-all shadow-md hover:shadow-lg cursor-pointer"
+              icon={<Sparkles className="w-4 h-4 text-purple-600" />}
             >
-              <Sparkles className="w-4 h-4 text-purple-700" />
-              <span>Open Team AI</span>
-              <ArrowRight className="w-3.5 h-3.5 text-purple-700" />
-            </button>
+              Open EVENTRA AI
+            </PillButton>
           </div>
         </div>
       </div>
 
-      {/* Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <Card className="p-4">
-          <span className="text-xs text-slate-400">Assigned Events</span>
-          <h3 className="text-xl font-bold text-slate-900 mt-1">2 Events</h3>
-        </Card>
-        <Card className="p-4">
-          <span className="text-xs text-slate-400">Active Tasks</span>
-          <h3 className="text-xl font-bold text-purple-700 mt-1">{activeTasks.length}</h3>
-        </Card>
-        <Card className="p-4">
-          <span className="text-xs text-slate-400">Completed Tasks</span>
-          <h3 className="text-xl font-bold text-emerald-600 mt-1">{completedTasks.length}</h3>
-        </Card>
-        <Card className="p-4">
-          <span className="text-xs text-slate-400">Upcoming Deadline</span>
-          <h3 className="text-sm font-bold text-amber-600 mt-1">Today 06:00 PM</h3>
-        </Card>
+      {/* 4 Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <StatCard
+          label="Assigned Events"
+          value="2 Events"
+          icon={<Calendar className="w-5 h-5 text-purple-600" />}
+          helperText="Active Campus Fests"
+          onClick={() => navigate('/vendor/events')}
+        />
+        <StatCard
+          label="Active Tasks"
+          value={activeTasks.length}
+          icon={<Briefcase className="w-5 h-5 text-indigo-600" />}
+          trend={{ value: `${activeTasks.length} in progress`, type: 'neutral' }}
+          onClick={() => navigate('/vendor/tasks')}
+        />
+        <StatCard
+          label="Completed Tasks"
+          value={completedTasks.length}
+          icon={<CheckCircle2 className="w-5 h-5 text-emerald-600" />}
+          trend={{ value: 'Verified by Dean', type: 'up' }}
+          onClick={() => navigate('/vendor/tasks')}
+        />
+        <StatCard
+          label="Upcoming Deadline"
+          value="06:00 PM"
+          icon={<Clock className="w-5 h-5 text-amber-600" />}
+          helperText="Stage Rigging Check"
+          trend={{ value: 'Due Today', type: 'down' }}
+        />
       </div>
 
       {/* Today's Work Schedule Section */}
       <div className="space-y-4">
-        <h3 className="text-base font-semibold text-slate-900">Today's Work Schedule</h3>
-        <Card className="space-y-3 border-l-4 border-l-purple-600">
-          <div className="flex justify-between items-start">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-bold text-[#1E1B2E]">Today&apos;s Work Schedule</h3>
+          <span className="text-xs font-semibold text-purple-600">Active Campus Duties</span>
+        </div>
+
+        <GlassCard lift className="space-y-4 p-5 sm:p-6 border-l-4 border-l-purple-600">
+          <div className="flex justify-between items-start gap-3">
             <div>
-              <span className="text-xs text-purple-700 font-medium">10:00 AM – 02:00 PM</span>
-              <h4 className="text-sm font-bold text-slate-900 mt-0.5">Main Stage JBL Sound & LED Rigging</h4>
-              <p className="text-xs text-slate-500">TechFest UPES 2026 • MAC Auditorium</p>
+              <span className="text-xs font-bold text-purple-700 block">10:00 AM – 02:00 PM</span>
+              <h4 className="text-base font-bold text-[#1E1B2E] mt-0.5">
+                Main Stage JBL Sound &amp; LED Rigging
+              </h4>
+              <p className="text-xs text-[#8B87A3] mt-0.5">
+                TechFest UPES 2026 • MAC Auditorium
+              </p>
             </div>
-            <Badge variant="purple" dot>In Progress</Badge>
+            <Chip variant="purple">In Progress</Chip>
           </div>
-          <ProgressBar progress={75} color="purple" showLabel />
-          <div className="flex justify-end gap-2 pt-2">
-            <Button size="sm" onClick={() => navigate('/vendor/submissions')}>
+
+          {/* Gradient Progress Bar */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-xs font-semibold">
+              <span className="text-[#8B87A3]">Milestone Progress</span>
+              <span className="text-purple-700">75%</span>
+            </div>
+            <div className="w-full h-2 rounded-full bg-slate-200/60 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{
+                  width: '75%',
+                  background: 'linear-gradient(90deg, #7C3AED, #A855F7 60%, #FB923C)',
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-purple-500/10">
+            <PillButton
+              size="sm"
+              variant="primary"
+              onClick={() => navigate('/vendor/submissions')}
+            >
               Submit Work Update
-            </Button>
+            </PillButton>
           </div>
-        </Card>
+        </GlassCard>
       </div>
     </PageContainer>
   );

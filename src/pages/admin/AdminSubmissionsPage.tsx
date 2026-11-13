@@ -3,7 +3,15 @@ import { FileCheck, Mic, Image as ImageIcon, CheckCircle, RefreshCw, Play } from
 import { Submission } from '../../types';
 import { submissionService } from '../../services/submissionService';
 import { PageContainer } from '../../components/layout';
-import { Card, Badge, Button, Alert } from '../../components/ui';
+import {
+  GlassCard,
+  PillButton,
+  Chip,
+  Card,
+  Badge,
+  Button,
+  Alert,
+} from '../../components/ui';
 
 export const AdminSubmissionsPage: React.FC = () => {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -39,55 +47,56 @@ export const AdminSubmissionsPage: React.FC = () => {
     >
       {successMsg && <Alert type="success" message={successMsg} onClose={() => setSuccessMsg(null)} />}
 
-      <div className="space-y-4">
+      <div className="space-y-5">
         {submissions.map((sub) => (
-          <Card key={sub.id} className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <GlassCard key={sub.id} lift className="space-y-4 p-5 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-purple-500/10 pb-3">
               <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="text-base font-semibold text-slate-900">{sub.taskName}</h4>
-                  <Badge variant={sub.type === 'voice' ? 'purple' : sub.type === 'image' ? 'blue' : 'slate'}>
+                <div className="flex items-center gap-2.5">
+                  <h4 className="text-base font-bold text-[#1E1B2E]">{sub.taskName}</h4>
+                  <Chip variant={sub.type === 'voice' ? 'purple' : sub.type === 'image' ? 'info' : 'neutral'}>
                     {sub.type} update
-                  </Badge>
+                  </Chip>
                 </div>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Submitted by <strong className="text-slate-800">{sub.submittedByName}</strong> • {sub.submissionTime}
+                <p className="text-xs text-[#8B87A3] mt-0.5">
+                  Submitted by <strong className="text-[#1E1B2E]">{sub.submittedByName}</strong> • {sub.submissionTime}
                 </p>
               </div>
 
-              <Badge variant={sub.status === 'Approved' ? 'emerald' : sub.status === 'Needs Revision' ? 'rose' : 'amber'}>
+              <Chip variant={sub.status === 'Approved' ? 'success' : sub.status === 'Needs Revision' ? 'danger' : 'warning'}>
                 {sub.status}
-              </Badge>
+              </Chip>
             </div>
 
             {/* Description */}
-            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed bg-slate-50/70 p-3 rounded-xl">
+            <p className="text-xs sm:text-sm text-[#4B4763] leading-relaxed neo-inset p-3.5 rounded-2xl">
               {sub.description}
             </p>
 
             {/* Media Content Preview */}
             {sub.type === 'image' && sub.imageUrl && (
-              <div className="space-y-1">
-                <span className="text-[11px] font-semibold text-slate-400 uppercase">Photo Proof Preview</span>
-                <div className="w-full max-w-sm rounded-xl overflow-hidden border border-slate-200">
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-bold text-[#8B87A3] uppercase tracking-wider block">Photo Proof Preview</span>
+                <div className="w-full max-w-sm rounded-2xl overflow-hidden border border-white/80 shadow-xs">
                   <img src={sub.imageUrl} alt="Proof" className="w-full h-48 object-cover" />
                 </div>
               </div>
             )}
 
             {sub.type === 'voice' && (
-              <div className="space-y-1">
-                <span className="text-[11px] font-semibold text-slate-400 uppercase">Voice Update Audio Player</span>
-                <div className="flex items-center gap-3 p-3 bg-purple-50/70 border border-purple-100 rounded-xl max-w-md">
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-bold text-[#8B87A3] uppercase tracking-wider block">Voice Update Audio Player</span>
+                <div className="flex items-center gap-3 p-3.5 neo-inset rounded-2xl max-w-md">
                   <button
+                    type="button"
                     onClick={() => alert('Playing voice update sample audio...')}
-                    className="w-9 h-9 rounded-full bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs cursor-pointer"
+                    className="w-10 h-10 rounded-full btn-primary flex items-center justify-center shrink-0 cursor-pointer"
                   >
-                    <Play className="w-4 h-4 ml-0.5" />
+                    <Play className="w-4 h-4 ml-0.5 text-white" />
                   </button>
                   <div className="flex-1">
-                    <span className="text-xs font-semibold text-purple-900 block">Voice Note ({sub.voiceDurationSeconds || 30}s)</span>
-                    <div className="w-full bg-purple-200/60 h-1.5 rounded-full mt-1 overflow-hidden">
+                    <span className="text-xs font-bold text-purple-950 block">Voice Note ({sub.voiceDurationSeconds || 30}s)</span>
+                    <div className="w-full bg-slate-200/60 h-2 rounded-full mt-1.5 overflow-hidden">
                       <div className="bg-purple-600 h-full w-1/3 rounded-full" />
                     </div>
                   </div>
@@ -96,24 +105,25 @@ export const AdminSubmissionsPage: React.FC = () => {
             )}
 
             {/* Action Buttons */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-              <Button
-                variant="outline"
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-purple-500/10">
+              <PillButton
+                variant="glass"
                 size="sm"
                 onClick={() => handleRevision(sub.id)}
-                icon={<RefreshCw className="w-3.5 h-3.5" />}
+                icon={<RefreshCw className="w-3.5 h-3.5 text-amber-600" />}
               >
                 Request Revision
-              </Button>
-              <Button
+              </PillButton>
+              <PillButton
+                variant="primary"
                 size="sm"
                 onClick={() => handleApprove(sub.id)}
                 icon={<CheckCircle className="w-3.5 h-3.5" />}
               >
                 Approve Work
-              </Button>
+              </PillButton>
             </div>
-          </Card>
+          </GlassCard>
         ))}
       </div>
     </PageContainer>

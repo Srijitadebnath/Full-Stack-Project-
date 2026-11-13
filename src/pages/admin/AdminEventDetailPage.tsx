@@ -22,7 +22,24 @@ import { taskService } from '../../services/taskService';
 import { budgetService } from '../../services/budgetService';
 import { submissionService } from '../../services/submissionService';
 import { PageContainer } from '../../components/layout';
-import { Card, Badge, Tabs, Button, ProgressBar, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableEmptyState } from '../../components/ui';
+import {
+  GlassCard,
+  StatCard,
+  PillButton,
+  Chip,
+  Card,
+  Badge,
+  Tabs,
+  Button,
+  ProgressBar,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  TableEmptyState,
+} from '../../components/ui';
 import { formatCurrency, formatDate, formatPercentage } from '../../utils/formatters';
 
 export const AdminEventDetailPage: React.FC = () => {
@@ -93,39 +110,43 @@ export const AdminEventDetailPage: React.FC = () => {
       title={event.name}
       subtitle={`${formatDate(event.date)} • ${event.venue}`}
       action={
-        <Button variant="outline" onClick={() => navigate('/admin/events')} icon={<ArrowLeft className="w-4 h-4" />}>
+        <PillButton
+          variant="glass"
+          onClick={() => navigate('/admin/events')}
+          icon={<ArrowLeft className="w-4 h-4 text-purple-600" />}
+        >
           Back to Events
-        </Button>
+        </PillButton>
       }
     >
-      {/* Event Header Banner Card */}
-      <Card className="bg-gradient-to-r from-purple-900 to-indigo-900 text-white p-6 rounded-2xl shadow-sm border-0">
+      {/* Event Header Banner Card (Glass Gradient 85% opacity) */}
+      <div className="relative overflow-hidden p-6 sm:p-7 rounded-[28px] bg-gradient-to-r from-purple-700/85 via-indigo-600/85 to-pink-500/85 backdrop-blur-2xl text-white border border-white/40 shadow-[0_16px_40px_rgba(124,58,237,0.18)]">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[11px] font-medium backdrop-blur-xs">
+              <span className="px-3 py-1 rounded-full bg-white/20 text-white text-[11px] font-bold backdrop-blur-md border border-white/30">
                 {event.category}
               </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-purple-500/40 text-purple-100 text-[11px] font-medium capitalize">
+              <span className="px-3 py-1 rounded-full bg-purple-500/40 text-purple-100 text-[11px] font-bold capitalize border border-white/20">
                 Status: {event.status}
               </span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">{event.name}</h2>
-            <p className="text-xs sm:text-sm text-purple-100/80 max-w-2xl">{event.description}</p>
+            <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">{event.name}</h2>
+            <p className="text-xs sm:text-sm text-purple-100/90 max-w-2xl">{event.description}</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 bg-white/10 p-4 rounded-xl backdrop-blur-xs text-xs">
+          <div className="grid grid-cols-2 gap-3 bg-white/15 p-4 rounded-2xl backdrop-blur-md text-xs border border-white/20">
             <div>
-              <span className="text-purple-200 block text-[10px]">Registrations</span>
-              <span className="font-bold text-white text-sm">{event.registrationCount} / {event.capacity}</span>
+              <span className="text-purple-200 block text-[10px] font-medium">Registrations</span>
+              <span className="font-extrabold text-white text-base">{event.registrationCount} / {event.capacity}</span>
             </div>
             <div>
-              <span className="text-purple-200 block text-[10px]">Budget Allocated</span>
-              <span className="font-bold text-white text-sm">{formatCurrency(event.budget)}</span>
+              <span className="text-purple-200 block text-[10px] font-medium">Budget Allocated</span>
+              <span className="font-extrabold text-white text-base">{formatCurrency(event.budget)}</span>
             </div>
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* 9 Navigation Tabs */}
       <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />

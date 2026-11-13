@@ -1,12 +1,33 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, MapPin, Search, Ticket, Users, Clock, AlertCircle, LogOut, UserCheck, Shield, Sparkles, KeyRound, CheckCircle2, Lock } from 'lucide-react';
+import {
+  Calendar,
+  MapPin,
+  Search,
+  Ticket,
+  Users,
+  Clock,
+  AlertCircle,
+  Sparkles,
+  KeyRound,
+  CheckCircle2,
+  Lock,
+  ArrowRight,
+  ChevronRight,
+} from 'lucide-react';
 import { Event, Registration, User } from '../../types';
 import { eventService } from '../../services/eventService';
 import { registrationService } from '../../services/registrationService';
 import { authService } from '../../services/authService';
 import { teamService, StudentOcStatus } from '../../services/teamService';
-import { Card, Badge, Button, Input, Modal, Select, Alert } from '../../components/ui';
+import {
+  GlassCard,
+  StatCard,
+  PillButton,
+  Chip,
+  GlassInput,
+  Modal,
+} from '../../components/ui';
 import { formatDate } from '../../utils/formatters';
 
 export const UserHomePage: React.FC = () => {
@@ -55,12 +76,29 @@ export const UserHomePage: React.FC = () => {
     }
   };
 
+  // Redirect admin/team away from student view immediately
+  useEffect(() => {
+    if (currentUser?.role === 'admin') {
+      navigate('/admin/dashboard', { replace: true });
+    } else if (currentUser?.role === 'team') {
+      navigate('/vendor/dashboard', { replace: true });
+    }
+  }, [currentUser, navigate]);
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
         const loadedUser = await authService.getCurrentUser();
         setCurrentUser(loadedUser);
+
+        if (loadedUser?.role === 'admin') {
+          navigate('/admin/dashboard', { replace: true });
+          return;
+        } else if (loadedUser?.role === 'team') {
+          navigate('/vendor/dashboard', { replace: true });
+          return;
+        }
 
         const [loadedEvents, loadedRegs] = await Promise.all([
           eventService.getEvents(),
@@ -83,39 +121,29 @@ export const UserHomePage: React.FC = () => {
           setRegistrations([]);
         }
       } catch (err) {
-        console.error("Failed to load campus events:", err);
+        console.error('Failed to load campus events:', err);
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, []);
-
-  const handleSignOut = () => {
-    authService.logout();
-    setCurrentUser(null);
-    setRegistrations([]);
-    setStudentOcStatus(null);
-    navigate('/login');
-  };
+  }, [navigate]);
 
   const handleApplySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser) {
-      navigate('/login');
-      return;
-    }
-    setApplyError(null);
-    setApplyMessage(null);
+    if (!currentUser?.email || !applyEventId) return;
+
     setApplyLoading(true);
+    setApplyMessage(null);
+    setApplyError(null);
 
     try {
       const res = await teamService.applyForOc({
+        event_id: applyEventId,
         user_name: currentUser.name,
         user_email: currentUser.email,
-        user_phone: applyPhone || currentUser.phone,
-        event_id: applyEventId,
+        user_phone: applyPhone,
         department: applyDepartment,
         responsibility_preference: applyReason,
         course: currentUser.department || 'Computer Science',
@@ -151,7 +179,9 @@ export const UserHomePage: React.FC = () => {
     setActivateLoading(true);
     try {
       await teamService.activateOcAccount(studentOcStatus.activation_token, newOcPassword);
-      setActivateSuccess(`🎉 Official OC Account (${studentOcStatus.official_email}) successfully activated! You can now log into the OC portal.`);
+      setActivateSuccess(
+        `🎉 Official OC Account (${studentOcStatus.official_email}) successfully activated! You can now log into the OC portal.`
+      );
       await fetchUserData();
     } catch (err: unknown) {
       setActivateError(err instanceof Error ? err.message : 'Failed to activate account');
@@ -165,124 +195,137 @@ export const UserHomePage: React.FC = () => {
   const upcomingEvents = events.filter((e) => e.status?.toLowerCase() === 'upcoming');
 
   const filteredUpcoming = upcomingEvents.filter((e) => {
-    const matchesSearch = e.name.toLowerCase().includes(search.toLowerCase()) ||
-                          e.description.toLowerCase().includes(search.toLowerCase()) ||
-                          e.venue.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch =
+      e.name.toLowerCase().includes(search.toLowerCase()) ||
+      e.description.toLowerCase().includes(search.toLowerCase()) ||
+      e.venue.toLowerCase().includes(search.toLowerCase());
     const matchesCat = selectedCategory === 'ALL' || e.category?.toLowerCase() === selectedCategory.toLowerCase();
     return matchesSearch && matchesCat;
   });
 
   const categories = ['ALL', 'Technology', 'Cultural', 'Hackathon', 'Sports'];
 
+  const studentFirstName = currentUser?.name
+    ? currentUser.name.replace(/^(Dr\.|Prof\.|Mr\.|Ms\.|Mrs\.)\s*/i, '').trim().split(' ')[0]
+    : '';
+
   return (
     <div className="flex flex-col font-sans">
       {/* Student Dashboard Overview Header & Stats */}
-      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-4">
+      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-4 space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-              {currentUser ? `Welcome back, ${currentUser.name.split(' ')[0]} 👋` : 'Campus Fest Dashboard'}
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--color-text-heading,#1E1B2E)] tracking-tight">
+              {currentUser ? `Welcome back, ${studentFirstName || 'Student'} 👋` : 'UPES Campus Fest Discovery'}
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Discover UPES campus events, manage your QR entry passes, or ask the EVENTRA AI assistant below.
+            <p className="text-xs sm:text-sm text-[var(--color-text-muted,#8B87A3)] mt-0.5">
+              Discover UPES campus events, manage your digital QR entry passes, or explore committee roles.
             </p>
           </div>
           {currentUser && (
-            <Button
-              variant="outline"
+            <PillButton
+              variant="glass"
               size="sm"
               onClick={() => navigate('/user/profile')}
-              icon={<UserCheck className="w-3.5 h-3.5 text-purple-600" />}
+              className="self-start sm:self-auto"
             >
               My Student Profile
-            </Button>
+            </PillButton>
           )}
         </div>
 
-        {/* Quick 3-Card Student Stats Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-          <Card className="p-4 flex items-center justify-between border border-purple-100/80 bg-white">
-            <div>
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
-                Upcoming Events
-              </span>
-              <span className="text-xl font-extrabold text-slate-900 mt-0.5 block">
-                {upcomingEvents.length + ongoingEvents.length}
-              </span>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-              <Calendar className="w-5 h-5" />
-            </div>
-          </Card>
+        {/* 3-Column Glass Stat Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <StatCard
+            label="Upcoming Events"
+            value={upcomingEvents.length + ongoingEvents.length}
+            icon={<Calendar className="w-5 h-5 text-purple-600" />}
+            trend={{ value: 'Scheduled ahead', type: 'up' }}
+          />
 
-          <Card
-            onClick={() => navigate('/user/my-events')}
-            className="p-4 flex items-center justify-between border border-purple-100/80 bg-white hover:border-purple-300 transition-colors cursor-pointer"
-          >
-            <div>
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
-                My Active Passes
-              </span>
-              <span className="text-xl font-extrabold text-purple-700 mt-0.5 block">
-                {currentUser ? registrations.length : 'Sign In'}
-              </span>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-              <Ticket className="w-5 h-5" />
-            </div>
-          </Card>
+          <div onClick={() => navigate('/user/my-events')} className="cursor-pointer">
+            <StatCard
+              label="My Active Passes"
+              value={currentUser ? registrations.length : 'Sign In'}
+              icon={<Ticket className="w-5 h-5 text-purple-600" />}
+              trend={{
+                value: currentUser ? `${registrations.length} tickets confirmed` : 'Tap to sign in',
+                type: 'neutral',
+              }}
+            />
+          </div>
 
-          <Card className="p-4 flex items-center justify-between border border-purple-100/80 bg-white">
-            <div>
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
-                OC Volunteer Status
-              </span>
-              <span className="text-sm font-bold text-slate-900 mt-1 block">
-                {studentOcStatus?.status === 'APPROVED'
-                  ? studentOcStatus.oc_status === 'ACTIVE'
-                    ? 'Active OC Member'
-                    : 'Approved • Ready to Activate'
+          <StatCard
+            label="OC Volunteer Status"
+            value={
+              studentOcStatus?.status === 'APPROVED'
+                ? studentOcStatus.oc_status === 'ACTIVE'
+                  ? 'Active OC Member'
+                  : 'Approved'
+                : studentOcStatus?.status === 'PENDING'
+                ? 'Under Review'
+                : 'Open'
+            }
+            icon={<Users className="w-5 h-5 text-purple-600" />}
+            trend={{
+              value:
+                studentOcStatus?.status === 'APPROVED'
+                  ? 'Ready to activate'
                   : studentOcStatus?.status === 'PENDING'
-                  ? 'Application Under Review'
-                  : 'Open for Applications'}
-              </span>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <Users className="w-5 h-5" />
-            </div>
-          </Card>
+                  ? 'Under review'
+                  : 'Open for apps',
+              type: 'up',
+            }}
+          />
         </div>
       </div>
 
       {/* Main Two-Column Layout */}
-      <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-6">
-        
-        {/* Left Panel: Applied Events Drawer */}
-        <div className="lg:col-span-1 space-y-4">
-          <Card className="space-y-3 bg-white p-5 border border-purple-50 shadow-sm rounded-2xl">
-            <div className="flex items-center gap-2 text-purple-700 font-bold text-xs uppercase tracking-wider pb-2 border-b border-slate-100">
-              <Ticket className="w-4 h-4 text-purple-600" />
-              <span>My Applied Events</span>
+      <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:px-8 grid grid-cols-1 lg:grid-cols-4 gap-6 pt-6">
+        {/* Left Panel: Applied Events & OC Opportunities */}
+        <div className="lg:col-span-1 space-y-5">
+          {/* Applied Events Drawer */}
+          <GlassCard className="p-5 space-y-3.5">
+            <div className="flex items-center justify-between pb-2 border-b border-[rgba(124,58,237,0.08)]">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg neo-raised flex items-center justify-center text-purple-600">
+                  <Ticket className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-xs font-bold text-[var(--color-text-heading,#1E1B2E)] uppercase tracking-wider">
+                  My Passes
+                </span>
+              </div>
+              {registrations.length > 0 && (
+                <Chip variant="purple" size="sm">
+                  {registrations.length}
+                </Chip>
+              )}
             </div>
 
             {!currentUser ? (
               <div className="text-center py-6 space-y-2">
-                <span className="text-xs text-slate-500 font-medium block">Not signed in</span>
-                <p className="text-[11px] text-slate-400">
+                <span className="text-xs text-[var(--color-text-muted,#8B87A3)] font-medium block">
+                  Not signed in
+                </span>
+                <p className="text-[11px] text-[var(--color-text-muted,#8B87A3)]">
                   Sign in with your student email to view your registered event tickets and passes.
                 </p>
-                <button
+                <PillButton
+                  variant="primary"
+                  size="sm"
                   onClick={() => navigate('/login')}
-                  className="mt-2 text-xs font-bold text-purple-700 hover:text-purple-800 underline cursor-pointer"
+                  className="mt-2 text-xs"
                 >
                   Sign In Now
-                </button>
+                </PillButton>
               </div>
             ) : registrations.length === 0 ? (
-              <div className="text-center py-6 space-y-2">
-                <span className="text-xs text-slate-400 font-medium block">No registrations yet.</span>
-                <p className="text-[11px] text-slate-400">
-                  Register for an upcoming fest on the right to receive your digital ticket!
+              <div className="text-center py-6 space-y-1.5">
+                <span className="text-xs text-[var(--color-text-muted,#8B87A3)] font-medium block">
+                  No registrations yet
+                </span>
+                <p className="text-[11px] text-[var(--color-text-muted,#8B87A3)]">
+                  Register for an upcoming fest on the right to receive your instant digital ticket!
                 </p>
               </div>
             ) : (
@@ -291,39 +334,45 @@ export const UserHomePage: React.FC = () => {
                   <div
                     key={r.id}
                     onClick={() => setSelectedAppliedReg(r)}
-                    className="p-3 bg-purple-50/50 hover:bg-purple-100/60 transition-all rounded-xl border border-purple-100/70 space-y-1 text-xs cursor-pointer shadow-xs"
+                    className="p-3 bg-white/70 hover:bg-white/95 transition-all rounded-2xl border border-white/80 neo-raised cursor-pointer space-y-1"
                   >
                     <div className="flex items-center justify-between gap-1">
-                      <span className="font-bold text-slate-900 truncate">{r.eventName}</span>
-                      <Badge variant="purple" size="sm">
-                        Ticket
-                      </Badge>
+                      <span className="font-bold text-xs text-[var(--color-text-heading,#1E1B2E)] truncate">
+                        {r.eventName}
+                      </span>
+                      <Chip variant="purple" size="sm">
+                        Pass
+                      </Chip>
                     </div>
-                    <p className="text-[11px] text-slate-500 font-mono">Ticket: {r.id}</p>
-                    <span className="text-[10px] text-purple-700 font-semibold block pt-0.5">
-                      View full ticket & badge →
+                    <p className="text-[10px] text-[var(--color-text-muted,#8B87A3)] font-mono">
+                      Ticket #{r.id.slice(0, 8)}
+                    </p>
+                    <span className="text-[10px] text-purple-700 font-bold block pt-0.5">
+                      View QR badge →
                     </span>
                   </div>
                 ))}
               </div>
             )}
-          </Card>
+          </GlassCard>
 
           {/* Organizing Committee (OC) Dynamic Status Card */}
           {studentOcStatus?.status === 'APPROVED' && studentOcStatus.oc_status === 'PENDING_ACTIVATION' ? (
-            <Card className="p-5 bg-gradient-to-br from-emerald-600 to-teal-800 text-white rounded-2xl shadow-lg space-y-3 border-2 border-emerald-300/40 animate-pulse">
+            <GlassCard className="p-5 bg-gradient-to-br from-emerald-600/90 to-teal-800/95 text-white border border-emerald-300/40 space-y-3 shadow-[0_12px_32px_rgba(16,185,129,0.25)]">
               <div className="flex items-center gap-2 text-emerald-200 font-extrabold text-xs uppercase tracking-wider">
-                <Sparkles className="w-4 h-4 text-amber-300" />
+                <Sparkles className="w-4 h-4 text-amber-300 animate-spin" />
                 <span>🎉 OC Application Approved!</span>
               </div>
               <p className="text-xs text-emerald-50 leading-relaxed">
-                Faculty Admin Dr. Rajesh Sharma has approved you for <strong>{studentOcStatus.event_name}</strong>!
+                Faculty Admin Dr. Rajesh Sharma has approved your role for <strong>{studentOcStatus.event_name}</strong>!
               </p>
-              <div className="p-2.5 bg-black/20 rounded-xl text-xs space-y-0.5">
+              <div className="p-2.5 bg-black/20 backdrop-blur-md rounded-xl text-xs space-y-0.5">
                 <span className="text-[10px] text-emerald-200 block uppercase font-bold">Your Official OC Handle:</span>
                 <span className="font-mono font-bold text-white block">{studentOcStatus.official_email}</span>
               </div>
-              <Button
+              <PillButton
+                variant="glass"
+                size="sm"
                 onClick={() => {
                   setNewOcPassword('');
                   setConfirmOcPassword('');
@@ -331,34 +380,36 @@ export const UserHomePage: React.FC = () => {
                   setActivateSuccess(null);
                   setIsActivateModalOpen(true);
                 }}
-                className="w-full py-2.5 bg-white hover:bg-emerald-50 text-emerald-800 font-extrabold text-xs rounded-xl shadow-md cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full bg-white text-emerald-800 hover:bg-emerald-50 font-bold"
               >
-                <KeyRound className="w-4 h-4 text-emerald-600" />
-                <span>Set Password & Activate Now →</span>
-              </Button>
-            </Card>
+                <KeyRound className="w-4 h-4 text-emerald-600 mr-1.5" />
+                <span>Set Password & Activate</span>
+              </PillButton>
+            </GlassCard>
           ) : studentOcStatus?.status === 'APPROVED' && studentOcStatus.oc_status === 'ACTIVE' ? (
-            <Card className="p-5 bg-gradient-to-br from-purple-900 to-indigo-950 text-white rounded-2xl shadow-md space-y-3">
+            <GlassCard dark className="p-5 space-y-3">
               <div className="flex items-center gap-2 text-purple-300 font-bold text-xs uppercase tracking-wider">
-                <UserCheck className="w-4 h-4 text-emerald-400" />
+                <Sparkles className="w-4 h-4 text-emerald-400" />
                 <span>Active OC Team Member</span>
               </div>
-              <p className="text-xs text-purple-200 leading-relaxed">
+              <p className="text-xs text-slate-300 leading-relaxed">
                 You are registered as an official Organizing Committee member for <strong>{studentOcStatus.event_name}</strong>.
               </p>
-              <div className="p-2 bg-purple-950/60 rounded-xl text-xs">
+              <div className="p-2.5 bg-white/5 rounded-xl text-xs border border-white/10">
                 <span className="text-[10px] text-purple-300 block font-bold">OC Handle:</span>
                 <span className="font-mono text-purple-100 font-bold">{studentOcStatus.official_email}</span>
               </div>
-              <Button
+              <PillButton
+                variant="primary"
+                size="sm"
                 onClick={() => navigate('/login')}
-                className="w-full py-2 bg-purple-500 hover:bg-purple-600 text-white text-xs font-bold rounded-xl cursor-pointer"
+                className="w-full"
               >
                 Sign In to OC Portal →
-              </Button>
-            </Card>
+              </PillButton>
+            </GlassCard>
           ) : studentOcStatus?.status === 'PENDING' ? (
-            <Card className="p-5 bg-amber-50 border border-amber-200 rounded-2xl space-y-2 text-xs">
+            <GlassCard className="p-5 space-y-2 border border-amber-200/80 bg-amber-50/60">
               <div className="flex items-center gap-2 text-amber-800 font-bold uppercase tracking-wider text-[11px]">
                 <Clock className="w-4 h-4 text-amber-600" />
                 <span>OC Application Under Review</span>
@@ -369,18 +420,20 @@ export const UserHomePage: React.FC = () => {
               <span className="text-[10px] text-amber-700 block">
                 Once approved, your official OC handle and activation link will appear right here!
               </span>
-            </Card>
+            </GlassCard>
           ) : (
-            <Card className="p-5 bg-gradient-to-br from-purple-900 to-indigo-950 text-white rounded-2xl shadow-md space-y-3">
+            <GlassCard dark className="p-5 space-y-3 relative overflow-hidden">
               <div className="flex items-center gap-2 text-purple-300 font-bold text-xs uppercase tracking-wider">
                 <Sparkles className="w-4 h-4 text-purple-300" />
                 <span>Join Fest OC Team</span>
               </div>
-              <p className="text-xs text-purple-200 leading-relaxed">
+              <p className="text-xs text-slate-300 leading-relaxed">
                 Want to manage events, lead technical stages, or coordinate guest artists? Volunteer for the UPES Fest Committee!
               </p>
               <div className="pt-1">
-                <button
+                <PillButton
+                  variant="primary"
+                  size="sm"
                   onClick={() => {
                     if (!currentUser) {
                       navigate('/login');
@@ -390,50 +443,71 @@ export const UserHomePage: React.FC = () => {
                       setIsApplyModalOpen(true);
                     }
                   }}
-                  className="w-full py-2.5 px-3 rounded-xl bg-purple-500 hover:bg-purple-400 text-white font-bold text-xs transition-all shadow-sm cursor-pointer"
+                  className="w-full"
                 >
                   Volunteer for OC Team →
-                </button>
+                </PillButton>
               </div>
-            </Card>
+            </GlassCard>
           )}
         </div>
 
         {/* Right Main Content Area: Campus Events */}
         <div className="lg:col-span-3 space-y-6">
-          
           {/* Ongoing Events */}
           {ongoingEvents.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                <h2 className="text-base font-extrabold text-slate-900 tracking-tight">Live & Ongoing Campus Fests</h2>
+                <h2 className="text-base font-extrabold text-[var(--color-text-heading,#1E1B2E)] tracking-tight">
+                  Live &amp; Ongoing Campus Fests
+                </h2>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {ongoingEvents.map((evt) => (
-                  <Card key={evt.id} className="border-l-4 border-l-emerald-500 space-y-3 p-5 rounded-2xl bg-white shadow-xs">
+                  <GlassCard key={evt.id} lift className="space-y-3 p-5 border-l-4 border-l-emerald-500">
                     <div className="flex justify-between items-start">
                       <div>
-                        <Badge variant="emerald" dot>Live Now</Badge>
-                        <h3 className="text-base font-bold text-slate-900 mt-1">{evt.name}</h3>
+                        <Chip variant="success" dot size="sm">
+                          Live Now
+                        </Chip>
+                        <h3 className="text-base font-bold text-[var(--color-text-heading,#1E1B2E)] mt-1.5">
+                          {evt.name}
+                        </h3>
                       </div>
-                      <span className="text-xs font-semibold text-slate-400">{evt.category}</span>
+                      <span className="text-xs font-semibold text-[var(--color-text-muted,#8B87A3)]">
+                        {evt.category}
+                      </span>
                     </div>
 
-                    <p className="text-xs text-slate-600 line-clamp-2">{evt.description}</p>
-                    
-                    <div className="text-xs text-slate-500 space-y-1 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                      <div className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-purple-600" /><span>{formatDate(evt.date)} ({evt.startTime})</span></div>
-                      <div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-purple-600" /><span>{evt.venue}</span></div>
+                    <p className="text-xs text-[var(--color-text-body,#4B4763)] line-clamp-2">
+                      {evt.description}
+                    </p>
+
+                    <div className="text-xs text-[var(--color-text-muted,#8B87A3)] space-y-1.5 p-3 rounded-2xl neo-inset">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-3.5 h-3.5 text-purple-600" />
+                        <span>
+                          {formatDate(evt.date)} ({evt.startTime})
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-3.5 h-3.5 text-purple-600" />
+                        <span>{evt.venue}</span>
+                      </div>
                     </div>
 
                     <div className="pt-2 flex justify-end">
-                      <Button size="sm" onClick={() => navigate(`/user/events/${evt.id}`)}>
+                      <PillButton
+                        size="sm"
+                        variant="primary"
+                        onClick={() => navigate(`/user/events/${evt.id}`)}
+                      >
                         Enter Live Fest Portal
-                      </Button>
+                      </PillButton>
                     </div>
-                  </Card>
+                  </GlassCard>
                 ))}
               </div>
             </div>
@@ -443,49 +517,62 @@ export const UserHomePage: React.FC = () => {
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">Upcoming Campus Events</h2>
-                <p className="text-xs text-slate-500">Live data synchronized with UPES Student Affairs database</p>
+                <h2 className="text-lg font-extrabold text-[var(--color-text-heading,#1E1B2E)] tracking-tight">
+                  Upcoming Campus Events
+                </h2>
+                <p className="text-xs text-[var(--color-text-muted,#8B87A3)]">
+                  Live data synchronized with UPES Student Affairs database
+                </p>
               </div>
 
-              <div className="w-full sm:w-64">
-                <Input
+              <div className="w-full sm:w-72">
+                <GlassInput
                   placeholder="Search events, venues..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  icon={<Search className="w-4 h-4 text-slate-400" />}
+                  icon={<Search className="w-4 h-4 text-[#8B87A3]" />}
                 />
               </div>
             </div>
 
-            {/* Category Filter Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap ${
-                    selectedCategory.toLowerCase() === cat.toLowerCase()
-                      ? 'bg-purple-600 text-white shadow-xs'
-                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-100'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
+            {/* Category Filter Pills (Neumorphic Inset Strip with Raised Active Pill) */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+              {categories.map((cat) => {
+                const isActive = selectedCategory.toLowerCase() === cat.toLowerCase();
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`px-4 py-2 rounded-full font-bold transition-all duration-200 cursor-pointer whitespace-nowrap text-xs ${
+                      isActive
+                        ? 'btn-primary'
+                        : 'bg-white/70 hover:bg-white/95 text-[var(--color-text-body,#4B4763)] border border-white/80 neo-raised'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Loading Indicator */}
             {loading ? (
               <div className="py-16 text-center space-y-3">
                 <div className="w-8 h-8 border-3 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto" />
-                <p className="text-xs font-semibold text-slate-500">Loading live campus events from PostgreSQL...</p>
+                <p className="text-xs font-semibold text-[var(--color-text-muted,#8B87A3)]">
+                  Loading live campus events from PostgreSQL...
+                </p>
               </div>
             ) : filteredUpcoming.length === 0 ? (
-              <div className="py-16 text-center bg-white rounded-2xl border border-slate-100 space-y-2 p-6">
-                <AlertCircle className="w-8 h-8 text-slate-300 mx-auto" />
-                <h3 className="text-sm font-bold text-slate-700">No events matched your search</h3>
-                <p className="text-xs text-slate-400">Try adjusting your category filter or keyword.</p>
-              </div>
+              <GlassCard className="py-16 text-center space-y-2 p-6">
+                <AlertCircle className="w-8 h-8 text-[var(--color-text-muted,#8B87A3)] mx-auto" />
+                <h3 className="text-sm font-bold text-[var(--color-text-heading,#1E1B2E)]">
+                  No events matched your search
+                </h3>
+                <p className="text-xs text-[var(--color-text-muted,#8B87A3)]">
+                  Try adjusting your category filter or keyword.
+                </p>
+              </GlassCard>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {filteredUpcoming.map((evt) => {
@@ -493,22 +580,25 @@ export const UserHomePage: React.FC = () => {
                   const isFull = remainingSeats <= 0;
 
                   return (
-                    <Card key={evt.id} className="overflow-hidden p-0 flex flex-col justify-between hover:shadow-lg transition-all rounded-2xl border border-purple-50 bg-white">
-                      
-                      {/* Image Header with Badges */}
-                      <div className="relative h-44 w-full bg-slate-100 overflow-hidden">
-                        <img 
-                          src={evt.image} 
-                          alt={evt.name} 
-                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" 
+                    <GlassCard
+                      key={evt.id}
+                      lift
+                      className="overflow-hidden p-0 flex flex-col justify-between rounded-3xl"
+                    >
+                      {/* Image Header with Frosted Badges */}
+                      <div className="relative h-48 w-full bg-slate-100 overflow-hidden">
+                        <img
+                          src={evt.image}
+                          alt={evt.name}
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                         />
                         <div className="absolute top-3 right-3 flex items-center gap-1.5">
-                          <Badge variant={isFull ? 'rose' : 'purple'} dot>
+                          <Chip variant={isFull ? 'danger' : 'purple'} dot size="sm">
                             {isFull ? 'Sold Out' : 'Open'}
-                          </Badge>
+                          </Chip>
                         </div>
                         <div className="absolute bottom-3 left-3 flex items-center gap-1.5">
-                          <span className="px-2.5 py-1 bg-slate-900/80 backdrop-blur-sm text-white text-[10px] font-bold rounded-lg shadow-xs">
+                          <span className="px-3 py-1 bg-slate-900/80 backdrop-blur-md text-white text-[10px] font-extrabold rounded-full shadow-xs">
                             {evt.category}
                           </span>
                         </div>
@@ -517,15 +607,21 @@ export const UserHomePage: React.FC = () => {
                       {/* Event Body Content */}
                       <div className="p-5 space-y-3 flex-1 flex flex-col justify-between">
                         <div className="space-y-1.5">
-                          <h3 className="text-base font-extrabold text-slate-900 leading-snug">{evt.name}</h3>
-                          <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{evt.description}</p>
+                          <h3 className="text-base font-extrabold text-[var(--color-text-heading,#1E1B2E)] leading-snug">
+                            {evt.name}
+                          </h3>
+                          <p className="text-xs text-[var(--color-text-body,#4B4763)] line-clamp-2 leading-relaxed">
+                            {evt.description}
+                          </p>
                         </div>
 
-                        {/* Event Metadata Cards */}
-                        <div className="space-y-1.5 text-xs text-slate-600 pt-3 border-t border-slate-100">
+                        {/* Event Metadata (Neumorphic Inset Box) */}
+                        <div className="space-y-1.5 text-xs text-[var(--color-text-body,#4B4763)] p-3 rounded-2xl neo-inset">
                           <div className="flex items-center gap-2">
                             <Calendar className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                            <span className="font-medium">{formatDate(evt.date)} ({evt.startTime})</span>
+                            <span className="font-medium">
+                              {formatDate(evt.date)} ({evt.startTime})
+                            </span>
                           </div>
                           <div className="flex items-center gap-2">
                             <MapPin className="w-3.5 h-3.5 text-purple-600 shrink-0" />
@@ -533,42 +629,46 @@ export const UserHomePage: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Real-time Seat Capacity Tracker */}
-                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                        {/* Seat Capacity Tracker & Actions */}
+                        <div className="pt-3 border-t border-[rgba(124,58,237,0.08)] flex items-center justify-between">
                           <div className="space-y-0.5">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            <span className="text-[10px] font-bold text-[var(--color-text-muted,#8B87A3)] uppercase tracking-wider block">
                               Available Capacity
                             </span>
-                            <span className={`text-xs font-extrabold ${isFull ? 'text-rose-600' : 'text-purple-700'}`}>
+                            <span
+                              className={`text-xs font-extrabold ${
+                                isFull ? 'text-rose-600' : 'text-purple-700'
+                              }`}
+                            >
                               {isFull ? 'Fully Booked' : `${remainingSeats} spots remaining`}
                             </span>
                           </div>
 
                           {registrations.some((r) => r.eventId === evt.id) ? (
-                            <Button 
-                              size="sm" 
-                              variant="outline"
+                            <PillButton
+                              size="sm"
+                              variant="glass"
                               onClick={() => {
                                 const reg = registrations.find((r) => r.eventId === evt.id);
                                 if (reg) setSelectedAppliedReg(reg);
                               }}
-                              className="rounded-xl px-3 font-bold border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 cursor-pointer"
+                              className="text-emerald-700 font-bold border-emerald-300"
                             >
-                              ✓ Already Registered
-                            </Button>
+                              ✓ Registered Pass
+                            </PillButton>
                           ) : (
-                            <Button 
-                              size="sm" 
+                            <PillButton
+                              size="sm"
+                              variant="primary"
                               disabled={isFull}
                               onClick={() => navigate(`/user/register/${evt.id}`)}
-                              className="rounded-xl px-4 font-bold cursor-pointer"
                             >
                               {isFull ? 'Closed' : 'Register Now →'}
-                            </Button>
+                            </PillButton>
                           )}
                         </div>
                       </div>
-                    </Card>
+                    </GlassCard>
                   );
                 })}
               </div>
@@ -585,40 +685,44 @@ export const UserHomePage: React.FC = () => {
           title="Digital Fest Ticket & Badge"
         >
           <div className="space-y-4">
-            <div className="p-4 bg-gradient-to-br from-purple-500 to-indigo-600 text-white rounded-2xl shadow-md space-y-3">
+            <GlassCard dark className="p-5 text-white space-y-4">
               <div className="flex justify-between items-start">
                 <div>
-                  <span className="text-[10px] font-bold tracking-widest uppercase opacity-80 block">Event Name</span>
-                  <h4 className="text-base font-extrabold">{selectedAppliedReg.eventName}</h4>
+                  <span className="text-[10px] font-bold tracking-widest uppercase opacity-75 block">
+                    Campus Event
+                  </span>
+                  <h4 className="text-lg font-extrabold">{selectedAppliedReg.eventName}</h4>
                 </div>
-                <Badge variant="purple" size="sm" className="bg-white/20 text-white border-0">
+                <Chip variant="purple" size="sm">
                   {selectedAppliedReg.status || 'CONFIRMED'}
-                </Badge>
+                </Chip>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-white/20">
+              <div className="grid grid-cols-2 gap-3 text-xs pt-3 border-t border-white/10">
                 <div>
-                  <span className="opacity-80 block text-[10px]">Attendee</span>
+                  <span className="opacity-75 block text-[10px]">Attendee</span>
                   <span className="font-bold">{selectedAppliedReg.userName}</span>
                 </div>
                 <div>
-                  <span className="opacity-80 block text-[10px]">Registration Type</span>
+                  <span className="opacity-75 block text-[10px]">Registration Type</span>
                   <span className="font-bold">
-                    {selectedAppliedReg.registrationType === 'oc_team' ? 'Organizing Committee' : 'Participant'}
+                    {selectedAppliedReg.registrationType === 'oc_team'
+                      ? 'Organizing Committee'
+                      : 'Participant Pass'}
                   </span>
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-white/20 flex items-center justify-between text-[11px] font-mono">
+              <div className="pt-3 border-t border-white/10 flex items-center justify-between text-[11px] font-mono opacity-80">
                 <span>SAP ID: {selectedAppliedReg.studentId}</span>
-                <span>Ticket: {selectedAppliedReg.id}</span>
+                <span>Ticket: #{selectedAppliedReg.id.slice(0, 8)}</span>
               </div>
-            </div>
+            </GlassCard>
 
             <div className="flex justify-end">
-              <Button size="sm" onClick={() => setSelectedAppliedReg(null)}>
+              <PillButton variant="glass" size="sm" onClick={() => setSelectedAppliedReg(null)}>
                 Close Ticket
-              </Button>
+              </PillButton>
             </div>
           </div>
         </Modal>
@@ -632,50 +736,65 @@ export const UserHomePage: React.FC = () => {
           title="Apply for Fest Organizing Committee"
         >
           <div className="space-y-4">
-            <p className="text-xs text-slate-600">
+            <p className="text-xs text-[var(--color-text-body,#4B4763)]">
               Submit your application to Faculty Admin Dr. Rajesh Sharma. Once approved, an official UPES OC handle will be issued to you!
             </p>
 
             {applyMessage && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2">
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-2xl flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>{applyMessage}</span>
               </div>
             )}
 
             {applyError && (
-              <Alert type="error" message={applyError} onClose={() => setApplyError(null)} />
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-2xl flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{applyError}</span>
+              </div>
             )}
 
             {!applyMessage ? (
-              <form onSubmit={handleApplySubmit} className="space-y-3">
+              <form onSubmit={handleApplySubmit} className="space-y-3.5">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 block">Select Fest / Event</label>
-                  <Select
+                  <label className="text-xs font-bold text-[var(--color-text-heading,#1E1B2E)] block">
+                    Select Fest / Event
+                  </label>
+                  <select
                     value={applyEventId}
                     onChange={(e) => setApplyEventId(e.target.value)}
-                    options={events.map((evt) => ({ value: evt.id, label: `${evt.name} (${evt.category})` }))}
-                  />
+                    className="w-full neo-inset rounded-2xl px-4 py-2.5 text-xs text-[var(--color-text-heading,#1E1B2E)] bg-transparent focus:outline-none focus:ring-2 focus:ring-purple-400"
+                  >
+                    {events.map((evt) => (
+                      <option key={evt.id} value={evt.id}>
+                        {evt.name} ({evt.category})
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 block">Preferred Department</label>
-                  <Select
+                  <label className="text-xs font-bold text-[var(--color-text-heading,#1E1B2E)] block">
+                    Preferred Department
+                  </label>
+                  <select
                     value={applyDepartment}
                     onChange={(e) => setApplyDepartment(e.target.value)}
-                    options={[
-                      { value: 'Stage & Technical Operations', label: 'Stage & Technical Operations' },
-                      { value: 'Guest Relations & Hospitality', label: 'Guest Relations & Hospitality' },
-                      { value: 'Logistics & Venue Operations', label: 'Logistics & Venue Operations' },
-                      { value: 'Media, PR & Promotions', label: 'Media, PR & Promotions' },
-                      { value: 'Sponsorship & Finance', label: 'Sponsorship & Finance' },
-                    ]}
-                  />
+                    className="w-full neo-inset rounded-2xl px-4 py-2.5 text-xs text-[var(--color-text-heading,#1E1B2E)] bg-transparent focus:outline-none focus:ring-2 focus:ring-purple-400"
+                  >
+                    <option value="Stage & Technical Operations">Stage &amp; Technical Operations</option>
+                    <option value="Guest Relations & Hospitality">Guest Relations &amp; Hospitality</option>
+                    <option value="Logistics & Venue Operations">Logistics &amp; Venue Operations</option>
+                    <option value="Media, PR & Promotions">Media, PR &amp; Promotions</option>
+                    <option value="Sponsorship & Finance">Sponsorship &amp; Finance</option>
+                  </select>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 block">Contact Phone Number</label>
-                  <Input
+                  <label className="text-xs font-bold text-[var(--color-text-heading,#1E1B2E)] block">
+                    Contact Phone Number
+                  </label>
+                  <GlassInput
                     type="tel"
                     value={applyPhone}
                     onChange={(e) => setApplyPhone(e.target.value)}
@@ -685,8 +804,10 @@ export const UserHomePage: React.FC = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 block">Statement / Experience</label>
-                  <Input
+                  <label className="text-xs font-bold text-[var(--color-text-heading,#1E1B2E)] block">
+                    Statement / Experience
+                  </label>
+                  <GlassInput
                     type="text"
                     value={applyReason}
                     onChange={(e) => setApplyReason(e.target.value)}
@@ -696,19 +817,24 @@ export const UserHomePage: React.FC = () => {
                 </div>
 
                 <div className="pt-2 flex justify-end gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setIsApplyModalOpen(false)}>
+                  <PillButton
+                    type="button"
+                    variant="glass"
+                    size="sm"
+                    onClick={() => setIsApplyModalOpen(false)}
+                  >
                     Cancel
-                  </Button>
-                  <Button type="submit" size="sm" disabled={applyLoading}>
-                    {applyLoading ? 'Submitting...' : 'Submit Application'}
-                  </Button>
+                  </PillButton>
+                  <PillButton type="submit" variant="primary" size="sm" loading={applyLoading}>
+                    Submit Application
+                  </PillButton>
                 </div>
               </form>
             ) : (
               <div className="pt-2 flex justify-end">
-                <Button size="sm" onClick={() => setIsApplyModalOpen(false)}>
+                <PillButton variant="primary" size="sm" onClick={() => setIsApplyModalOpen(false)}>
                   Done
-                </Button>
+                </PillButton>
               </div>
             )}
           </div>
@@ -723,33 +849,38 @@ export const UserHomePage: React.FC = () => {
           title="Activate Your Official OC Account"
         >
           <div className="space-y-4">
-            <div className="p-3 bg-purple-50 border border-purple-100 rounded-xl text-xs space-y-1">
+            <div className="p-3.5 bg-purple-50/80 border border-purple-100 rounded-2xl text-xs space-y-1">
               <span className="font-bold text-purple-900 block">Official Handle Approved:</span>
               <span className="font-mono font-bold text-purple-700 text-sm block">
                 {studentOcStatus?.official_email}
               </span>
               <p className="text-[11px] text-purple-600 pt-1">
-                Set your secure password below. Once saved into the database, you can log in directly at the 
+                Set your secure password below. Once saved into the database, you can log in directly at the
                 <strong> OC Member</strong> portal desk!
               </p>
             </div>
 
             {activateSuccess && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2">
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-2xl flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>{activateSuccess}</span>
               </div>
             )}
 
             {activateError && (
-              <Alert type="error" message={activateError} onClose={() => setActivateError(null)} />
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-2xl flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{activateError}</span>
+              </div>
             )}
 
             {!activateSuccess ? (
-              <form onSubmit={handleActivateSubmit} className="space-y-3">
+              <form onSubmit={handleActivateSubmit} className="space-y-3.5">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 block">Create OC Password</label>
-                  <Input
+                  <label className="text-xs font-bold text-[var(--color-text-heading,#1E1B2E)] block">
+                    Create OC Password
+                  </label>
+                  <GlassInput
                     type="password"
                     value={newOcPassword}
                     onChange={(e) => setNewOcPassword(e.target.value)}
@@ -760,8 +891,10 @@ export const UserHomePage: React.FC = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 block">Confirm OC Password</label>
-                  <Input
+                  <label className="text-xs font-bold text-[var(--color-text-heading,#1E1B2E)] block">
+                    Confirm OC Password
+                  </label>
+                  <GlassInput
                     type="password"
                     value={confirmOcPassword}
                     onChange={(e) => setConfirmOcPassword(e.target.value)}
@@ -772,17 +905,23 @@ export const UserHomePage: React.FC = () => {
                 </div>
 
                 <div className="pt-2 flex justify-end gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setIsActivateModalOpen(false)}>
+                  <PillButton
+                    type="button"
+                    variant="glass"
+                    size="sm"
+                    onClick={() => setIsActivateModalOpen(false)}
+                  >
                     Cancel
-                  </Button>
-                  <Button type="submit" size="sm" disabled={activateLoading}>
-                    {activateLoading ? 'Activating in PostgreSQL...' : 'Activate Account & Set Password'}
-                  </Button>
+                  </PillButton>
+                  <PillButton type="submit" variant="primary" size="sm" loading={activateLoading}>
+                    Activate Account
+                  </PillButton>
                 </div>
               </form>
             ) : (
               <div className="pt-2 flex justify-end gap-2">
-                <Button
+                <PillButton
+                  variant="primary"
                   size="sm"
                   onClick={() => {
                     setIsActivateModalOpen(false);
@@ -790,7 +929,7 @@ export const UserHomePage: React.FC = () => {
                   }}
                 >
                   Sign In as OC Member Now →
-                </Button>
+                </PillButton>
               </div>
             )}
           </div>

@@ -4,7 +4,18 @@ import { TeamMember, TeamRole, User } from '../../types';
 import { teamService, OcApplication } from '../../services/teamService';
 import { authService } from '../../services/authService';
 import { PageContainer } from '../../components/layout';
-import { Card, Badge, Button, Input, Select, Modal, Alert } from '../../components/ui';
+import {
+  GlassCard,
+  PillButton,
+  Chip,
+  Card,
+  Badge,
+  Button,
+  Input,
+  Select,
+  Modal,
+  Alert,
+} from '../../components/ui';
 
 export const AdminTeamsPage: React.FC = () => {
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -95,9 +106,13 @@ export const AdminTeamsPage: React.FC = () => {
       subtitle="Review volunteer applications, approve official handles, and manage department rosters"
       action={
         isFacultyAdmin ? (
-          <Button onClick={() => setIsModalOpen(true)} icon={<Plus className="w-4 h-4" />}>
+          <PillButton
+            variant="primary"
+            onClick={() => setIsModalOpen(true)}
+            icon={<Plus className="w-4 h-4" />}
+          >
             Add Member Manually
-          </Button>
+          </PillButton>
         ) : undefined
       }
     >
@@ -107,40 +122,48 @@ export const AdminTeamsPage: React.FC = () => {
           <Alert type="success" message={actionMessage} onClose={() => setActionMessage(null)} />
         )}
 
-        {/* Tab switch: Applications vs. Active Roster */}
-        <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
-          <button
-            onClick={() => setActiveTab('applications')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === 'applications'
-                ? 'bg-purple-600 text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            <Clock className="w-4 h-4" />
-            <span>Student Volunteer Applications</span>
-            {pendingApps.length > 0 && (
-              <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black">
-                {pendingApps.length} New
-              </span>
-            )}
-          </button>
+        {/* Tab switch: Applications vs. Active Roster (Pill Buttons in Glass Card) */}
+        <GlassCard className="p-3 sm:p-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab('applications')}
+              className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === 'applications'
+                  ? 'btn-primary text-white shadow-xs'
+                  : 'btn-glass text-[#4B4763] hover:text-[#1E1B2E]'
+              }`}
+            >
+              <Clock className="w-4 h-4" />
+              <span>Student Applications</span>
+              {pendingApps.length > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black">
+                  {pendingApps.length} New
+                </span>
+              )}
+            </button>
 
-          <button
-            onClick={() => setActiveTab('roster')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === 'roster'
-                ? 'bg-purple-600 text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            <UserCheck className="w-4 h-4" />
-            <span>Active OC Team Roster</span>
-            <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-bold">
-              {members.length}
-            </span>
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab('roster')}
+              className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === 'roster'
+                  ? 'btn-primary text-white shadow-xs'
+                  : 'btn-glass text-[#4B4763] hover:text-[#1E1B2E]'
+              }`}
+            >
+              <UserCheck className="w-4 h-4" />
+              <span>Active OC Team Roster</span>
+              <span className="px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-700 text-[10px] font-bold">
+                {members.length}
+              </span>
+            </button>
+          </div>
+
+          <span className="text-[11px] text-[#8B87A3] font-medium hidden sm:block">
+            Official UPES Organizing Committee
+          </span>
+        </GlassCard>
 
         {/* Loading state indicator */}
         {loading ? (
